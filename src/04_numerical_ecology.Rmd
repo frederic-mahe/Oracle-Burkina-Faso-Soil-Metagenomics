@@ -1,0 +1,251 @@
+---
+title: " Oracle soils Burkina Faso t = 0 "
+author: "Frédéric Mahé"
+date: '`r format(Sys.time(), "%d %B %Y")`'
+
+output:
+  rmarkdown::html_document:
+    theme: lumen
+    toc: yes
+    toc_float: TRUE
+    keep_md: yes
+    # code_folding: hide
+---
+
+```{r setup, include=FALSE}
+rm(list = ls()) # remove all the object before starting
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+#### load required packages
+
+```{r packages, message=FALSE}
+library(here)
+library(tidyverse)
+```
+
+
+# SSU rRNA metabarcoding (16S V3-V4)
+
+## decontamination and subsampling
+
+### variables and functions
+
+```{r}
+input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstringOTUs.mumu.table2"
+title <- "Oracle MetaB t0 SSU assignment with Silva v138.1 (87 samples)"
+rarefied_table <- str_replace(input, "table2", "table3")
+useful_metadata <- c("OTU", "total", "amplicon", "length", "abundance",
+                   "spread", "identity", "taxonomy")
+useless_metadata <- c("sequence", "quality", "cloud", "references", "chimera")
+min_target_size <- 10000  # minimal number of reads
+problematic_sample <- "T-1_S82"
+```
+
+Fix an automatic column type detection issue for sample
+`r problematic_sample`:
+
+```{r}
+load_raw_16S_occurrence_data <- function(filename){
+    here::here("data/MetaB_t0/", filename) %>%
+        read_tsv(na = "0",
+                 show_col_types = FALSE,
+                 col_type = list(`T-1_S82` = col_double()))
+}
+
+. %>%
+    select(OTU, starts_with("T-"), starts_with("OR-")) %>%
+    pivot_longer(cols = -OTU,
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    filter(! is.na(reads)) %>%
+    summarise(sum(reads)) %>%
+    pull() -> count_all_reads
+```
+
+
+### preliminary taxonomic filtering
+
+Remove unassigned entries and entries assigned to organelles:
+
+```{r}
+load_raw_16S_occurrence_data(input) %>%
+    filter(! str_detect(taxonomy, "No_hit|Mitochondria|Chloroplast")) -> starting_table
+```
+
+How many reads were removed?
+
+```{r}
+load_raw_16S_occurrence_data(input) %>%
+    count_all_reads -> reads_before
+
+starting_table %>%
+    count_all_reads -> reads_after
+```
+
+`r prettyNum(reads_before - reads_after, scientific=FALSE, big.mark=",")`
+reads were removed. That's a 
+`r prettyNum(100 * (1 - (reads_after / reads_before)), scientific=FALSE)`
+% reduction.
+
+
+clean up:
+
+```{r}
+rm(problematic_sample, reads_before, reads_after,
+   load_raw_16S_occurrence_data, count_all_reads,
+   input)
+```
+
+
+### extract control samples
+
+```{r}
+## Extract control samples
+starting_table %>%
+    select(all_of(useful_metadata),
+           starts_with("T-"),
+           starts_with("OR-T-extr")) %>%
+    pivot_longer(cols = -all_of(useful_metadata),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    filter(! is.na(reads)) %>%
+    count(OTU, wt = reads) -> controls
+
+controls
+```
+
+
+### decontamination
+
+Compute the total number of reads for each OTU present in control
+samples. That sum is then substracted from all occurrences of that OTU
+in true samples. The rationale is as follows:
+
+- if an OTU is abundant in control samples, but rare in true samples,
+  then it is a contamination specific to the control samples, and it
+  will be eliminated by the substraction (i.e, final abundance is 0),
+- if an OTU is present in control samples, and present in true samples
+  (systematic contamination, will be mitigated by the substraction),
+ - if an OTU is rare in control samples, but abundant in true samples
+  (cross-talk, will be eliminated/mitigated by the substraction)
+
+Control samples can be eliminated from the statistical analysis after
+the substraction (all OTUs present in control samples have been zeroed
+out).
+
+
+```{r}
+starting_table %>%
+    select(-all_of(useless_metadata)) %>%
+    pivot_longer(cols = -all_of(useful_metadata),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    filter(! is.na(reads)) %>%
+    left_join(controls, by = "OTU") %>%
+    mutate(reads = case_when(
+               is.na(n)  ~ reads,
+               n > reads ~ 0,
+               TRUE      ~ reads - n)) %>%
+    select(-n) %>%
+    pivot_wider(names_from = samples,
+                values_from = reads,
+                values_fill = 0) -> d
+
+rm(controls, starting_table)
+```
+
+Find sample sizes (number of reads per sample):
+
+```{r}
+d %>%
+    select(-all_of(useful_metadata)) %>%
+    pivot_longer(cols = everything(),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    count(samples, wt = reads, name = "reads") %>%
+    arrange(reads) -> sample_sizes
+```
+
+Find duplicated samples:
+
+```{r}
+sample_sizes %>%
+    filter(str_detect(samples, "-S_")) %>%
+    mutate(samples = str_remove(samples, "-S_.*")) %>%
+    pull(samples) -> duplicated_samples
+
+duplicated_samples
+```
+
+How many reads in these duplicated samples?
+
+```{r}
+sample_sizes %>%
+    pivot_wider(names_from = samples,
+                values_from = reads) %>%
+    select(starts_with(duplicated_samples)) %>%
+    pivot_longer(cols = everything(),
+                 names_to = "samples",
+                 values_to = "reads")
+```
+
+It seems that re-sequenced samples have more reads in all cases.
+
+List small samples that will be eliminated:
+
+```{r}
+sample_sizes %>%
+    filter(reads < min_target_size) %>%
+    select(samples) %>%
+    pull() -> small_samples
+
+small_samples
+```
+
+Get the size of the smallest remaining samples:
+
+```{r}
+sample_sizes %>%
+    filter(reads >= min_target_size) %>%
+    summarize(min(reads)) %>%
+    pull() -> smallest_sample_size
+```
+
+The smallest sample contains 
+`r prettyNum(smallest_sample_size, scientific=FALSE, big.mark=",")` 
+reads.
+
+Isolate metadata columns, rename samples  and prepare rarefaction:
+
+```{r}
+d %>%
+    select(all_of(useful_metadata)) -> metadata
+
+. %>%
+    pivot_longer(cols = -OTU,
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    mutate(samples = str_remove(samples, "-S_"),
+           samples = str_replace(samples, "^OR-", "BU-"),
+           samples = str_remove(samples, "_?S[:digit:]+$")) %>%
+    pivot_wider(names_from = samples,
+                values_from = reads) %>%
+        select(-OTU) -> rename_samples
+
+d %>%
+    select(-all_of(c(useful_metadata, small_samples)), OTU) %>%
+    rename_samples %>%
+    t() -> occurrences_t
+```
+
+To be continued...
+
+
+***
+
+```{r}
+sessionInfo()
+```
