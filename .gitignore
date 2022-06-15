@@ -1,3 +1,11 @@
+*~
+*.md
+*.html
+*.woff
+*.png
+*.jpg
+*.css
+
 # History files
 .Rhistory
 .Rapp.history
