@@ -42,6 +42,8 @@ useful_metadata <- c("OTU", "total", "amplicon", "length", "abundance",
 useless_metadata <- c("sequence", "quality", "cloud", "references", "chimera")
 min_target_size <- 10000  # minimal number of reads
 problematic_sample <- "T-1_S82"
+seed <- 123
+n_subsamplings <- 100
 ```
 
 Fix an automatic column type detection issue for sample
@@ -239,7 +241,7 @@ The smallest sample contains
 `r prettyNum(smallest_sample_size, scientific=FALSE, big.mark=",")` 
 reads.
 
-Isolate metadata columns, rename samples  and prepare rarefaction:
+Isolate metadata columns, rename samples and prepare for rarefaction:
 
 ```{r}
 d %>%
@@ -262,11 +264,87 @@ d %>%
     t() -> occurrences_t
 ```
 
-To be continued...
+
+### rarefaction (random subsampling)
+
+Randomly subsample the table, so all samples have the same number of
+reads. Repeat the process `r n_subsamplings` times to make sure that
+the final profile is as close as possible to the initial
+distribution. Use a fix seed to make the process 100% repeatable.
+
+
+```{r}
+library(vegan)
+
+set.seed(seed)
+matrix1 <- rrarefy(occurrences_t, smallest_sample_size)
+for (i in 2:n_subsamplings) {
+    matrix1 <- matrix1 + rrarefy(occurrences_t, smallest_sample_size)
+}
+
+matrix1 / n_subsamplings -> d_rarefied
+
+rm(i, seed, n_subsamplings, d, matrix1)
+```
+
+Prepare to remove empty OTUs from the final rarefied table:
+
+```{r}
+. %>%
+    pivot_longer(cols = starts_with("BU-"),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    filter(reads > 0) %>%
+    group_by(OTU) %>%
+    mutate(total = sum(reads),
+           spread = n()) %>%
+    ungroup() %>%
+    pivot_wider(names_from = samples,
+                values_from = reads,
+                values_fill = 0) %>%
+    filter(total > 0) -> remove_empty_OTUs
+
+. %>%
+    mutate(total = NA,
+           abundance = NA,
+           spread = NA) -> remove_outdated_data
+```
+
+
+Rebuild and save the newly rarefied OTU table:
+
+```{r}
+bind_cols(metadata,
+          d_rarefied %>%
+          t() %>%
+          as.data.frame() %>%
+          as_tibble()) %>%
+    remove_outdated_data %>%
+    remove_empty_OTUs -> d
+
+d %>%
+    write_tsv(file = here::here("data", "MetaB_t0", rarefied_table))
+```
+
+How many reads per sample in the final table?
+
+```{r}
+d %>%
+    pivot_longer(cols = starts_with("BU-"),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    count(samples, wt = reads, name = "reads") %>%
+    summary()
+
+rm(d, d_rarefied)
+```
+
+As expected, there are now `r smallest_sample_size` reads in all samples.
 
 
 ***
 
 ```{r}
 sessionInfo()
+rm(list = ls())
 ```
