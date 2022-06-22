@@ -100,7 +100,7 @@ rm(problematic_sample, reads_before, reads_after,
 ```
 
 
-### extract control samples
+### list OTUs present in control samples
 
 ```{r}
 ## Extract control samples
@@ -112,10 +112,31 @@ starting_table %>%
                  names_to = "samples",
                  values_to = "reads") %>%
     filter(! is.na(reads)) %>%
-    count(OTU, wt = reads) -> controls
-
-controls
+    count(OTU, wt = reads, sort = TRUE) -> controls
 ```
+
+There are a total of `r controls %>% summarise(sum = sum(n)) %>% pull()`
+ reads in controls samples. Here is a view of the most abundant:
+
+
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+
+controls %>%
+    slice(1:10) %>%
+    left_join(starting_table %>%
+              select(OTU, taxonomy),
+              by = "OTU") %>%
+    as.data.frame() -> tmp
+
+knitr::kable(tmp, caption = "Top ten OTUs in control samples")
+
+rm(tmp)
+```
+
+The most abundant OTU in control samples is the Enterobacterales
+ *[Serratiae](https://en.wikipedia.org/wiki/Serratia)*, which can
+be found in water, soil, plants, and animals.
 
 
 ### decontamination
