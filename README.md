@@ -18,4 +18,5 @@
 
 ### Statistical analysis
 
-(see Rmarkdown script)
+(see the Rmarkdown script:
+[src/04\_numerical\_ecology.Rmd](src/04_numerical_ecology.Rmd))
