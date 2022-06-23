@@ -24,6 +24,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r packages, message=FALSE}
 library(here)
 library(tidyverse)
+library(knitr)
+library(vegan)
 ```
 
 
@@ -38,8 +40,8 @@ input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstring
 title <- "Oracle MetaB t0 SSU assignment with Silva v138.1 (87 samples)"
 rarefied_table <- str_replace(input, "table2", "table3")
 useful_metadata <- c("OTU", "total", "amplicon", "length", "abundance",
-                   "spread", "identity", "taxonomy")
-useless_metadata <- c("sequence", "quality", "cloud", "references", "chimera")
+                   "spread", "identity", "taxonomy", "references")
+useless_metadata <- c("sequence", "quality", "cloud", "chimera")
 min_target_size <- 10000  # minimal number of reads
 problematic_sample <- "T-1_S82"
 seed <- 123
@@ -51,7 +53,7 @@ Fix an automatic column type detection issue for sample
 
 ```{r}
 load_raw_16S_occurrence_data <- function(filename){
-    here::here("data/MetaB_t0/", filename) %>%
+    here::here("data", "MetaB_t0", filename) %>%
         read_tsv(na = "0",
                  show_col_types = FALSE,
                  col_type = list(`T-1_S82` = col_double()))
@@ -117,13 +119,12 @@ starting_table %>%
     count(OTU, wt = reads, sort = TRUE) -> controls
 ```
 
-There are a total of `r controls %>% summarise(sum = sum(n)) %>% pull()`
+There are a total of
+ `r prettyNum(controls %>% summarise(sum = sum(n)) %>% pull(), scientific=FALSE, big.mark=",")`
  reads in controls samples. Here is a view of the most abundant:
 
 
 ```{r echo = FALSE, results = 'asis'}
-library(knitr)
-
 controls %>%
     slice(1:10) %>%
     left_join(starting_table %>%
@@ -270,16 +271,15 @@ d %>%
 Randomly subsample the table, so all samples have the same number of
 reads. Repeat the process `r n_subsamplings` times to make sure that
 the final profile is as close as possible to the initial
-distribution. Use a fix seed to make the process 100% repeatable.
+distribution. Use a fix seed to make the process 100% repeatable. That
+step can take several minutes to run.
 
 
 ```{r}
-library(vegan)
-
 set.seed(seed)
-matrix1 <- rrarefy(occurrences_t, smallest_sample_size)
+matrix1 <- vegan::rrarefy(occurrences_t, smallest_sample_size)
 for (i in 2:n_subsamplings) {
-    matrix1 <- matrix1 + rrarefy(occurrences_t, smallest_sample_size)
+    matrix1 <- matrix1 + vegan::rrarefy(occurrences_t, smallest_sample_size)
 }
 
 matrix1 / n_subsamplings -> d_rarefied
@@ -339,7 +339,9 @@ d %>%
 rm(d, d_rarefied)
 ```
 
-As expected, there are now `r smallest_sample_size` reads in all samples.
+As expected, there are now
+ `r prettyNum(smallest_sample_size, scientific=FALSE, big.mark=",")`
+ reads in all samples.
 
 
 ***
