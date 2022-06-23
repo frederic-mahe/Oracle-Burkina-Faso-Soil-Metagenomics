@@ -1,0 +1,138 @@
+---
+title: " Oracle soils Burkina Faso t = 0 "
+author: "Frédéric Mahé"
+date: '`r format(Sys.time(), "%d %B %Y")`'
+
+output:
+  rmarkdown::html_document:
+    theme: lumen
+    toc: yes
+    toc_float: TRUE
+    keep_md: yes
+    # code_folding: hide
+---
+
+```{r setup, include=FALSE}
+rm(list = ls()) # remove all the object before starting
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+#### load required packages
+
+```{r packages, message=FALSE}
+library(here)
+library(tidyverse)
+library(vegan)
+```
+
+
+# SSU rRNA metabarcoding (16S V3-V4)
+
+## preamble
+
+### variables and functions
+
+```{r}
+input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstringOTUs.mumu.table3"
+title <- "Oracle MetaB t0 SSU NMDS (80 samples)"
+useful_metadata <- c("OTU", "total", "amplicon", "length", "abundance",
+                     "spread", "identity", "taxonomy", "references")
+cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7")
+seed <- 123
+```
+
+```{r}
+load_clean_16S_occurrence_data <- function(filename){
+    here::here("data", "MetaB_t0", filename) %>%
+        read_tsv(show_col_types = FALSE)
+}
+```
+
+### load data
+
+```{r}
+load_clean_16S_occurrence_data(input) -> full_occurrence_table
+
+```
+
+
+## NMDS
+
+### computation
+
+extract only occurrences and transpose for vegan
+
+```{r}
+full_occurrence_table %>%
+    select(-all_of(useful_metadata)) %>%
+    t() -> occurrences_t
+```
+
+Bray-Curtis dissimilarity matrix:
+
+```{r}
+occurrences_t.bray <- vegan::vegdist(occurrences_t, method = "bray")
+```
+
+NMDS ordination:
+
+```{r}
+set.seed(seed)
+occurrences_t.bray.nmds <- vegan::metaMDS(occurrences_t.bray)
+```
+
+### prepare results
+
+extract data scores and add stress value:
+
+```{r}
+
+stress <- occurrences_t.bray.nmds$stress
+samples <- rownames(occurrences_t)
+data.scores <- as.data.frame(scores(occurrences_t.bray.nmds))
+data.scores$samples <- rownames(data.scores)
+
+x_min <- min(data.scores$NMDS1)
+y_max <- max(data.scores$NMDS2)
+stress_annotation <- paste("stress: ", round(stress, digits = 4), sep = "")
+```
+
+parse sample names:
+
+```{r}
+data.scores %>%
+    separate(col = samples, into = c("country", "locality", "sample"), sep = "-") -> d
+```
+
+### plot
+
+```{r}
+ggplot(data = d,
+       aes(x = NMDS1, y = NMDS2, fill = locality)) +
+    scale_fill_manual(values = cbPalette) +
+    scale_colour_manual(values = cbPalette) +
+    geom_point(size = 6, shape = 21, colour = "black", stroke = 0.5) +
+    theme_bw(base_size = 16) +
+    ggtitle(title) +
+    annotate("text", x = x_min + abs(x_min / 9),
+             y = y_max, label = stress_annotation)
+
+## ggsave(output, height = height, width = width)
+```
+
+No obvious structuration.
+
+
+## Taxonomic barcharts
+
+(to be done)
+
+
+***
+
+```{r}
+sessionInfo()
+rm(list = ls())
+```
