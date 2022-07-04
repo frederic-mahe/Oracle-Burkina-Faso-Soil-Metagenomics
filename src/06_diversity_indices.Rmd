@@ -1,0 +1,165 @@
+---
+title: " Oracle soils Burkina Faso t = 0 (#6) "
+author: "Frédéric Mahé"
+date: '`r format(Sys.time(), "%d %B %Y")`'
+
+output:
+  rmarkdown::html_document:
+    theme: lumen
+    toc: yes
+    toc_float: TRUE
+    keep_md: yes
+    # code_folding: hide
+---
+
+```{r setup, include=FALSE}
+rm(list = ls()) # remove all the object before starting
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+#### load required packages
+
+```{r packages, message=FALSE}
+library(here)
+library(tidyverse)
+library(vegan)
+## library(hilldiv)
+```
+
+
+# SSU rRNA metabarcoding (16S V3-V4)
+
+## preamble
+
+### variables and functions
+
+```{r}
+input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstringOTUs.mumu.table3"
+title <- "Oracle MetaB t0 SSU NMDS (80 samples)"
+useful_metadata <- c("OTU", "total", "amplicon", "length", "abundance",
+                     "spread", "identity", "taxonomy", "references")
+cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7")
+seed <- 123
+```
+
+```{r}
+load_clean_16S_occurrence_data <- function(filename){
+    here::here("data", "MetaB_t0", filename) %>%
+        read_tsv(show_col_types = FALSE)
+}
+```
+
+### load data
+
+```{r}
+load_clean_16S_occurrence_data(input) -> full_occurrence_table
+
+```
+
+
+## alpha diversity
+
+### estimate usual diversity index
+
+extract only occurrences and transpose for vegan
+
+```{r}
+full_occurrence_table %>%
+    select(-all_of(useful_metadata)) %>%
+    t() -> occurrences_t
+```
+
+compute indices
+
+```{r}
+## richness
+vegan::estimateR(round(occurrences_t)) -> R
+
+## Shannon index H; richness + evenness
+vegan::diversity(occurrences_t, index = "shannon") -> H
+
+## Simpson's D index; richness + evenness; 0-1; 1 - D rises as evenness increases
+vegan::diversity(occurrences_t, index = "simpson") -> D
+vegan::diversity(occurrences_t, index = "invsimpson") -> inv_D
+
+## Pielou’s index of evenness; 0-1, 1 = max. evenness
+vegan::specnumber(occurrences_t) -> S
+H / log(S) -> J
+```
+
+### Hill numbers: estimate effective number of species
+
+This equation has a parameter q that defines its sensitivity to rare species:
+low values of q favor rare species, high values of q favor abundant species. 
+
+For example, Shannon diversity is of order q = 1, and for Simpson
+diversity q = 2.
+
+When q = 0, diversity = S (richness), because rare species are treated
+the same as abundant ones.
+
+```{r}
+##{{richness as hill numbers}}
+## occurrences_t
+
+## dR <- bact_OTUs_rarefied_t %>% 
+##   t() %>% 
+##   hill_div(qvalue = 0) %>%
+##   as_tibble(rownames = NA) %>%
+##   rownames_to_column(var = "soil_code")
+
+## #{{richness + evenness (= shannon diversity) as hill numbers; rare species}}
+## dREr <- bact_OTUs_rarefied_t %>% 
+##   t() %>%
+##   hill_div(qvalue = 1) %>%
+##   as_tibble(rownames = NA) %>%
+##   rownames_to_column(var = "soil_code")
+
+## ##{{richness + evenness (= inverse Simpson = simpson diversity) as hill numbers; abundant species}}
+## dREa <- bact_OTUs_rarefied_t %>% 
+##   t() %>%
+##   hill_div(qvalue = 2) %>%
+##   as_tibble(rownames = NA) %>%
+##   rownames_to_column(var = "soil_code")
+
+#{{evenness (= shannon evenness) as hill ratio}}
+## eDRr <- dREr %>%
+##   left_join(dR, by = "soil_code") %>%
+##   mutate(value = value.x / value.y) %>%
+##   select(soil_code,value)
+
+#{{evenness (= ssimpson evenness) as hill ratio}}
+## eDRa  <- dREa %>%
+##   left_join(dR, by = "soil_code") %>%
+##   mutate(value = value.x / value.y) %>%
+##   select(soil_code,value)
+```
+
+
+### pool diversity indices
+
+```{r}
+## R %>%
+##   left_join(H, by = "soil_code") %>% 
+##   left_join(inv_D, by = "soil_code") %>%
+##   left_join(J, by = "soil_code") %>%
+##   left_join(dR, by = "soil_code") %>%
+##   left_join(dREr, by = "soil_code") %>%
+##   left_join(dREa, by = "soil_code") %>%
+##   left_join(eDRr, by = "soil_code") %>%
+##     left_join(eDRa, by = "soil_code") -> Indices_bact
+
+## names(Indices_bact) <- c("soil_code", "Richness", "Shannon", "Inv_Simpson", "Pielou", 
+##                           "Hill_Richness","Hill_Shannon","Hill_Inv_Simpson", 
+##                           "Hill_Shannon_evenness", "Hill_Simpson_evenness")
+```
+
+
+***
+
+```{r}
+sessionInfo()
+rm(list = ls())
+```
