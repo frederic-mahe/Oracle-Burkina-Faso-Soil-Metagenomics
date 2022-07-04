@@ -124,12 +124,6 @@ ggplot(data = d,
 
 No obvious structuration.
 
-
-## Taxonomic barcharts
-
-(to be done)
-
-
 ***
 
 ```{r}
