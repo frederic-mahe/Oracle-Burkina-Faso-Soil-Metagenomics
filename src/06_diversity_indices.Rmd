@@ -37,8 +37,10 @@ library(hilldiv)
 
 ```{r}
 input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstringOTUs.mumu.table3"
+metadata_file <- "metadata.txt"
 useful_metadata <- c("OTU", "total", "amplicon", "length", "abundance",
                      "spread", "identity", "taxonomy", "references")
+seed <- 123
 ```
 
 ```{r}
@@ -46,13 +48,20 @@ load_clean_16S_occurrence_data <- function(filename){
     here::here("data", "MetaB_t0", filename) %>%
         read_tsv(show_col_types = FALSE)
 }
+
+load_metadata <- function(filename){
+    here::here("data", filename) %>%
+        read_tsv(show_col_types = FALSE) %>%
+        mutate(soil_code = str_replace_all(soil_code, "_", "-"))
+}
 ```
 
 ### load data
 
 ```{r}
 load_clean_16S_occurrence_data(input) -> full_occurrence_table
-
+load_metadata(metadata_file) -> metadata
+glimpse(metadata)
 ```
 
 
@@ -157,6 +166,38 @@ tibble(estimated_richness,
 
 ## clean up
 rm(R, H, inv_D, J, dR, dREr, dREa, eDRr, eDRa, estimated_richness)
+```
+
+### normality test
+
+Shapiro-Francia test (shapiro.test); Anderson–Darling test (ad.test);
+Cramer–von Mises test (cvm.test); Lilliefors test (lillie.test);
+Pearson chi-squared test for the composite hypothesis of normality
+(pearson.test)
+
+merge with metadata:
+
+```{r}
+Indices_bact %>%
+  left_join(metadata, by = "soil_code") %>%
+  droplevels() -> tmp  # merge metadata when creating Indices_bact
+```
+
+if Shapiro-Francia test with p < 0.05, data need to be transform to
+reach normality. Transformation can be `sqrt()`, `sqrt(sqrt())`,
+`log1p()`, `log10()`, `asin(sqrt(x / 100))`.
+
+```{r}
+set.seed(seed)
+shapiro.test(tmp$Hill_Richness) -> tmp2
+tmp2
+if (tmp2$p.value < 0.05) {
+    hist(log1p(tmp$Hill_Richness))
+    ## ggqqplot(log1p(tmp$Hill_Richness), ylab = "Number of OTUs")
+} else {
+    hist(tmp$Hill_Richness)
+    ## ggqqplot(tmp$Shannon, ylab = "Richness")  # not the same variable!
+}
 ```
 
 
