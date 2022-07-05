@@ -114,7 +114,7 @@ Hill numbers:
 
 
 ```{r}
-## richness with Hill numbers
+## richness
 compute_hill_numbers(qvalue = 0) -> dR
 
 ## Shannon diversity
@@ -136,22 +136,27 @@ rm(full_occurrence_table, compute_hill_numbers)
 
 ### pool diversity indices
 
-```{r}
+vegan's estimated richness (R) is more complex and needs to be
+transformed first. Other indices are vectors and can used directly
+to build a new tibble.
 
+```{r}
 R %>%
     t() %>%
-    as_tibble(rownames = "soil_code") %>%
-    bind_cols(tibble(Shannon = H,
-                     Inv_Simpson = inv_D,
-                     Pielou = J,
-                     Hill_Richness = dR,
-                     Hill_Shannon = dREr,
-                     Hill_Inv_Simpson = dREa,
-                     Hill_Shannon_evenness = eDRr,
-                     Hill_Simpson_evenness = eDRa)) -> Indices_bact
+    as_tibble(rownames = "soil_code") -> estimated_richness
+
+tibble(estimated_richness,
+       Shannon = H,
+       Inv_Simpson = inv_D,
+       Pielou = J,
+       Hill_Richness = dR,
+       Hill_Shannon = dREr,
+       Hill_Inv_Simpson = dREa,
+       Hill_Shannon_evenness = eDRr,
+       Hill_Simpson_evenness = eDRa) -> Indices_bact
 
 ## clean up
-rm(R, H, inv_D, J, dR, dREr, dREa, eDRr, eDRa)
+rm(R, H, inv_D, J, dR, dREr, dREa, eDRr, eDRa, estimated_richness)
 ```
 
 
