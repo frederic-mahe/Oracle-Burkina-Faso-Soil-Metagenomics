@@ -24,8 +24,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r packages, message=FALSE}
 library(here)
 library(tidyverse)
-library(vegan)
-library(hilldiv)
+library(vegan)  # diversity indices
+library(hilldiv)  # Hill numbers
+library(ggpubr)  # ggqqplot
 ```
 
 
@@ -112,7 +113,7 @@ rare species are treated the same as abundant ones.
 compute_hill_numbers <- function(qvalue){
     full_occurrence_table %>%
         select(-all_of(useful_metadata)) %>%
-        hill_div(qvalue = qvalue)
+        hilldiv::hill_div(qvalue = qvalue)
 }
 ```
 
@@ -143,7 +144,7 @@ rm(full_occurrence_table, compute_hill_numbers)
 ```
 
 
-### pool diversity indices
+### pool diversity indices and add metadata
 
 vegan's estimated richness (R) is more complex and needs to be
 transformed first. Other indices are vectors and can used directly
@@ -162,7 +163,8 @@ tibble(estimated_richness,
        Hill_Shannon = dREr,
        Hill_Inv_Simpson = dREa,
        Hill_Shannon_evenness = eDRr,
-       Hill_Simpson_evenness = eDRa) -> Indices_bact
+       Hill_Simpson_evenness = eDRa) %>%
+    left_join(metadata, by = "soil_code") -> Indices_bact
 
 ## clean up
 rm(R, H, inv_D, J, dR, dREr, dREa, eDRr, eDRa, estimated_richness)
@@ -175,28 +177,25 @@ Cramer–von Mises test (cvm.test); Lilliefors test (lillie.test);
 Pearson chi-squared test for the composite hypothesis of normality
 (pearson.test)
 
-merge with metadata:
-
-```{r}
-Indices_bact %>%
-  left_join(metadata, by = "soil_code") %>%
-  droplevels() -> tmp  # merge metadata when creating Indices_bact
-```
-
-if Shapiro-Francia test with p < 0.05, data need to be transform to
-reach normality. Transformation can be `sqrt()`, `sqrt(sqrt())`,
+if Shapiro-Francia test as a p-value < 0.05, data needs to be transformed
+to reach normality. Transformation can be `sqrt()`, `sqrt(sqrt())`,
 `log1p()`, `log10()`, `asin(sqrt(x / 100))`.
 
 ```{r}
 set.seed(seed)
-shapiro.test(tmp$Hill_Richness) -> tmp2
-tmp2
-if (tmp2$p.value < 0.05) {
-    hist(log1p(tmp$Hill_Richness))
-    ## ggqqplot(log1p(tmp$Hill_Richness), ylab = "Number of OTUs")
+shapiro.test(Indices_bact$Hill_Richness) -> shapiro_results
+shapiro_results
+
+if (shapiro_results$p.value < 0.05) {
+    print("normality hypothesis is not supported, use a log(1 + x) transformation:")
+    hist(log1p(Indices_bact$Hill_Richness))
+    print("Quantile-Quantile plot")
+    ggpubr::ggqqplot(log1p(Indices_bact$Hill_Richness), ylab = "Number of OTUs")
 } else {
-    hist(tmp$Hill_Richness)
-    ## ggqqplot(tmp$Shannon, ylab = "Richness")  # not the same variable!
+    print("normality hypothesis cannot be rejected, no transformation needed:")
+    hist(Indices_bact$Hill_Richness)
+    print("Quantile-Quantile plot:")
+    ggpubr::ggqqplot(Indices_bact$Shannon, ylab = "Richness")  # not the same variable!
 }
 ```
 
