@@ -22,4 +22,5 @@
 [src/04\_numerical\_ecology.Rmd](src/04_numerical_ecology.Rmd))
 
 Note that library functions are noted as `package::function()` (for
-example, `vegan::diversity()`), except for tidyverse functions.
+example, `vegan::diversity()`), except for tidyverse functions and
+base packages.
