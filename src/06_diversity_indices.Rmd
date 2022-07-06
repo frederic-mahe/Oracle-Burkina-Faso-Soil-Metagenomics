@@ -186,17 +186,19 @@ set.seed(seed)
 shapiro.test(Indices_bact$Hill_Richness) -> shapiro_results
 shapiro_results
 
-if (shapiro_results$p.value < 0.05) {
+if (shapiro_results$p.value > 0.05) {
     print("normality hypothesis is not supported, use a log(1 + x) transformation:")
-    hist(log1p(Indices_bact$Hill_Richness))
-    print("Quantile-Quantile plot")
-    ggpubr::ggqqplot(log1p(Indices_bact$Hill_Richness), ylab = "Number of OTUs")
+    hill_richness_values <- log1p(Indices_bact$Hill_Richness)
 } else {
     print("normality hypothesis cannot be rejected, no transformation needed:")
-    hist(Indices_bact$Hill_Richness)
-    print("Quantile-Quantile plot:")
-    ggpubr::ggqqplot(Indices_bact$Shannon, ylab = "Richness")  # not the same variable!
+    hill_richness_values <- Indices_bact$Hill_Richness
 }
+
+hist(hill_richness_values)
+print("Quantile-Quantile plot")
+ggpubr::ggqqplot(hill_richness_values, ylab = "Number of OTUs")
+
+rm(hill_richness_values, shapiro_results)
 ```
 
 
