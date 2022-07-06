@@ -27,6 +27,7 @@ library(tidyverse)
 library(vegan)  # diversity indices
 library(hilldiv)  # Hill numbers
 library(ggpubr)  # ggqqplot
+library(dunn.test)  # Dunn's test
 ```
 
 
@@ -56,6 +57,7 @@ load_metadata <- function(filename){
         mutate(soil_code = str_replace_all(soil_code, "_", "-"))
 }
 ```
+
 
 ### load data
 
@@ -100,10 +102,11 @@ H / log(S) -> J
 rm(occurrences_t, S)
 ```
 
+
 ### Hill numbers: estimate effective number of species
 
 This equation has a parameter `q` that defines its sensitivity to rare species:
-low values of `q` favor rare species, high values of `q` favor abundant species. 
+low values of `q` favor rare species, high values of `q` favor abundant species.
 
 For example, Shannon diversity is of order `q = 1`, and for Simpson
 diversity `q = 2`. When `q = 0`, diversity = `S` (richness), because
@@ -121,7 +124,6 @@ Hill numbers:
 - richness (`qvalue = 0`, `dR`),
 - richness + evenness (Shannon diversity) favor rare species (`qvalue = 1`, `dREr`),
 - richness + evenness (inverse Simpson = Simpson diversity) favor abundant species(`qvalue = 1`, `dREa`)
-
 
 ```{r}
 ## richness
@@ -170,6 +172,7 @@ tibble(estimated_richness,
 rm(R, H, inv_D, J, dR, dREr, dREa, eDRr, eDRa, estimated_richness)
 ```
 
+
 ### normality test
 
 Shapiro-Francia test (shapiro.test); Anderson–Darling test (ad.test);
@@ -177,16 +180,18 @@ Cramer–von Mises test (cvm.test); Lilliefors test (lillie.test);
 Pearson chi-squared test for the composite hypothesis of normality
 (pearson.test)
 
+```{r}
+set.seed(seed)
+shapiro.test(Indices_bact$Hill_Richness) -> shapiro_results
+shapiro_results
+```
+
 if Shapiro-Francia test as a p-value < 0.05, data needs to be transformed
 to reach normality. Transformation can be `sqrt()`, `sqrt(sqrt())`,
 `log1p()`, `log10()`, `asin(sqrt(x / 100))`.
 
 ```{r}
-set.seed(seed)
-shapiro.test(Indices_bact$Hill_Richness) -> shapiro_results
-shapiro_results
-
-if (shapiro_results$p.value > 0.05) {
+if (shapiro_results$p.value < 0.05) {
     print("normality hypothesis is not supported, use a log(1 + x) transformation:")
     hill_richness_values <- log1p(Indices_bact$Hill_Richness)
 } else {
@@ -199,6 +204,68 @@ print("Quantile-Quantile plot")
 ggpubr::ggqqplot(hill_richness_values, ylab = "Number of OTUs")
 
 rm(hill_richness_values, shapiro_results)
+```
+
+
+### kruskall Wallis and post-hoc Dunn tests
+
+#### locality effect
+
+perform Kruskal tests and Dunn posthoc tests for unequal numbers of observations.
+
+```{r}
+make_kruskal_test <- function(diversity_index) {
+    ## deal with non-standard evaluation
+    substitute(Indices_bact$diversity_index) %>%
+        eval() -> local_index_name
+
+    kruskal.test(formula = local_index_name ~ locality,
+                 data = Indices_bact,
+                 na.action = na.omit) -> kruskal_results
+
+    kruskal_results$p.value %>%
+        round(digits = 4) %>%
+        paste("Kruskal-Wallis rank sum test",
+              "\nLocality P = ", ., sep = "") -> local_message
+
+    tibble(diversity_indices = diversity_index, message = local_message)
+}
+```
+
+two groups:
+
+```{r}
+bind_rows(
+    make_kruskal_test(diversity_index = "Hill_Richness"),
+    make_kruskal_test(diversity_index = "Hill_Shannon"),
+    make_kruskal_test(diversity_index = "Hill_Inv_Simpson"),
+    make_kruskal_test(diversity_index = "Hill_Shannon_evenness"),
+    make_kruskal_test(diversity_index = "Hill_Simpson_evenness")) %>%
+    pivot_wider(names_from = "diversity_indices",
+                values_from = "message") -> kruskal_results
+```
+
+Note: `map_dfr(indices, make_kruskal_test)` would make the code
+shorter but does not work.
+
+
+multi groups:
+
+```{r}
+dunn_loc_dR <- dunn.test::dunn.test(Indices_bact$Hill_Richness, Indices_bact$locality,
+                                    method = "bh")
+
+dunn_loc_dREr <- dunn.test::dunn.test(Indices_bact$Hill_Shannon, Indices_bact$locality,
+                                      method = "bh")
+
+dunn_loc_dREa <- dunn.test::dunn.test(Indices_bact$Hill_Inv_Simpson, Indices_bact$locality,
+                                      method = "bh")
+
+dunn_loc_eDRr <- dunn.test::dunn.test(Indices_bact$Hill_Shannon_evenness, Indices_bact$locality,
+                                      method = "bh")
+
+dunn_loc_eDRa <- dunn.test::dunn.test(Indices_bact$Hill_Simpson_evenness, Indices_bact$locality,
+                                      method = "bh")
 ```
 
 
