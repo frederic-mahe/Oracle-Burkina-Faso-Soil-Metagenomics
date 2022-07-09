@@ -1,0 +1,80 @@
+---
+title: " Oracle soils Burkina Faso t = 0 (#7) "
+author: "Frédéric Mahé"
+date: '`r format(Sys.time(), "%d %B %Y")`'
+
+output:
+  rmarkdown::html_document:
+    theme: lumen
+    toc: yes
+    toc_float: TRUE
+    keep_md: yes
+    # code_folding: hide
+---
+
+```{r setup, include=FALSE}
+rm(list = ls()) # remove all the object before starting
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+#### load required packages
+
+```{r packages, message=FALSE}
+library(here)
+library(tidyverse)
+```
+
+
+# SSU rRNA metabarcoding (16S V3-V4)
+
+## preamble
+
+### variables and functions
+
+```{r}
+input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstringOTUs.mumu.table3"
+metadata_file <- "metadata.txt"
+useful_metadata <- c("OTU", "total", "amplicon", "length", "abundance",
+                     "spread", "identity", "taxonomy", "references")
+seed <- 123
+```
+
+```{r}
+load_clean_16S_occurrence_data <- function(filename){
+    here::here("data", "MetaB_t0", filename) %>%
+        read_tsv(show_col_types = FALSE)
+}
+
+load_metadata <- function(filename){
+    ## replace '_' and remove trailing zeros in soil codes
+    here::here("data", filename) %>%
+        read_tsv(show_col_types = FALSE) %>%
+        mutate(soil_code = str_replace_all(soil_code, "_", "-"),
+               soil_code = str_replace(soil_code, "-0(?=[1-9]$)", "-"))
+}
+```
+
+
+### load data
+
+```{r}
+load_clean_16S_occurrence_data(input) -> full_occurrence_table
+load_metadata(metadata_file) -> metadata
+```
+
+
+## taxonomy
+
+### format and fix
+
+to be completed
+
+
+***
+
+```{r}
+sessionInfo()
+rm(list = ls())
+```
