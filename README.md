@@ -31,6 +31,8 @@ base packages.
 - [x] metabarcoding: alpha diversity,
 - [x] metabarcoding: alpha diversity vs locality,
 - [x] metabarcoding: beta diversity vs locality,
+- [ ] metabarcoding: beta diversity vs locality (make a new plot with
+      barycenters),
 - [ ] metabarcoding: use 20 taxonomic fields and weighted assignments,
 - [ ] metabarcoding: taxonomy and functions (nitrogen cycle),
 - [ ] metagenomics shotgun: use the metabarcoding taxonomic framework,
