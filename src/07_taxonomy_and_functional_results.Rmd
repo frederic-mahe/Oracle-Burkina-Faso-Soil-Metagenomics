@@ -72,6 +72,11 @@ load_metadata(metadata_file) -> metadata
 to be completed
 
 
+roadmap:
+- add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
+  only one genus with that function,
+
+
 ***
 
 ```{r}
