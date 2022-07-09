@@ -24,3 +24,14 @@
 Note that library functions are noted as `package::function()` (for
 example, `vegan::diversity()`), except for tidyverse functions and
 base packages.
+
+**Roadmap (16S)**:
+
+- [x] metabarcoding: decontamination and filtering,
+- [x] metabarcoding: alpha diversity,
+- [x] metabarcoding: alpha diversity vs locality,
+- [x] metabarcoding: beta diversity vs locality,
+- [ ] metabarcoding: use 20 taxonomic fields and weighted assignments,
+- [ ] metabarcoding: taxonomy and functions (nitrogen cycle),
+- [ ] metagenomics shotgun: use the metabarcoding taxonomic framework,
+- [ ] metagenomics shotgun: same stats as above,
