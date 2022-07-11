@@ -31,7 +31,142 @@ library(tidyverse)
 
 ## preamble
 
-### variables and functions
+### download Silva files
+
+create folders if need be:
+
+```{r}
+dir.create(here::here("data", "Silva"),
+           recursive = TRUE,
+           showWarnings = FALSE)
+```
+
+if the Silva files are not already present, download them:
+
+```{r}
+download_if_missing <- function(file_name, url) {
+    local_file <- here::here("data", "Silva", file_name)
+    if (! file.exists(local_file)) {
+        download.file(url = paste0(url, file_name),
+                      destfile = local_file,
+                      method = "auto")
+    }
+}
+
+URL <- "https://www.arb-silva.de/fileadmin/silva_databases/release_138.1/Exports/"
+
+download_if_missing(file_name = "SILVA_138.1_SSURef_NR99_tax_silva.fasta.gz",
+                    url = URL)
+download_if_missing(file_name = "tax_slv_ssu_138.1.txt.gz",
+                    url = paste0(URL, "taxonomy/"))
+```
+
+clean up:
+
+```{r}
+rm(download_if_missing)
+```
+
+
+### Silva ranked taxonomic data
+
+#### variables and functions
+
+```{r}
+column_names <- c("taxonomic_path", "taxid", "taxonomic_rank", "remark", "release")
+columns_to_keep <- c("taxonomic_path", "taxonomic_rank")
+```
+
+```{r}
+load_tax_slv_data <- function(tax_slv_data) {
+    here::here("data", "Silva", tax_slv_data) %>%
+        read_tsv(col_names = column_names,
+                 col_types = "cifcf",
+                 col_select = all_of(columns_to_keep),
+                 show_col_types = FALSE)
+}
+
+. %>%
+    mutate(taxonomic_path = str_remove(taxonomic_path, ";$"),
+           taxonomic_path = str_remove(taxonomic_path, ".*;")) %>%
+    arrange(taxonomic_path) %>%
+    count(taxonomic_path, taxonomic_rank) -> link_taxa_and_ranks
+
+. %>%
+    count(taxonomic_path) %>%
+    filter(n > 1) -> find_duplicated_ranks
+
+. %>%
+    filter(! taxonomic_path %in% c("Incertae Sedis", "uncultured") &
+           ! (taxonomic_path == "SAR" & taxonomic_rank == "phylum") &
+           ! (taxonomic_path == "Stramenopiles" & taxonomic_rank == "subphylum") &
+           ! (taxonomic_path == "Labyrinthulomycetes" & taxonomic_rank == "class")) %>%
+    select(-n) -> ban_some_taxa_and_ranks
+```
+
+#### load data
+
+```{r}
+load_tax_slv_data("tax_slv_ssu_138.1.txt.gz") %>%
+    link_taxa_and_ranks -> d
+```
+
+#### find and eliminate conflicts
+
+A given taxa name should be present in only one of the 20 possible
+ranks. Find taxa names that do not follow that rule:
+
+```{r}
+d %>%
+    find_duplicated_ranks
+```
+
+Besides 'uncultured' and 'Incertae Sedis', all conflicts come from
+these four entries:
+
+- Eukaryota;Amorphea;Amoebozoa;SAR;	46930	phylum		138
+- Eukaryota;Amorphea;Amoebozoa;SAR;Stramenopiles;	46931	subphylum		138
+- Eukaryota;Amorphea;Amoebozoa;SAR;Stramenopiles;Labyrinthulomycetes;	46932	class		138
+- Eukaryota;Amorphea;Amoebozoa;SAR;Stramenopiles;Labyrinthulomycetes;Sorodiplophrys;	46933	genus		138
+
+handle these specific cases:
+
+```{r}
+d %>%
+    ban_some_taxa_and_ranks -> taxa2ranks
+```
+
+#### check final 'taxa to rank' table
+
+how many taxonomic levels in Silva? 20 levels expected
+
+```{r}
+taxa2ranks %>%
+    select(taxonomic_rank) %>%
+    distinct()
+```
+
+clean up:
+
+```{r}
+rm(find_duplicated_ranks, d, ban_some_taxa_and_ranks,
+   columns_to_keep, link_taxa_and_ranks, load_tax_slv_data,
+   URL, column_names)
+```
+
+
+### Silva SSU NR99 references
+
+- load taxonomic names and accession numbers,
+- fold,
+- match taxa name and rank,
+- unfold,
+- result should be a table of accession paths with 20 levels
+
+
+### 16S occurrence data
+
+#### variables and functions
 
 ```{r}
 input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstringOTUs.mumu.table3"
@@ -57,7 +192,7 @@ load_metadata <- function(filename){
 ```
 
 
-### load data
+#### load occurrence data
 
 ```{r}
 load_clean_16S_occurrence_data(input) -> full_occurrence_table
