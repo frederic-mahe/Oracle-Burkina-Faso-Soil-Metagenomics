@@ -217,11 +217,11 @@ load_metadata <- function(filename){
 . %>%
     select(OTU, identity, references, starts_with("BU-")) %>%
     pivot_longer(cols = starts_with("BU-"),
-                 names_to = "samples",
+                 names_to = "soil_code",
                  values_to = "reads",
                  values_drop_na = TRUE) %>%
     separate_rows(references, sep = ",") %>%
-    group_by(OTU, samples) %>%
+    group_by(OTU, soil_code) %>%
     mutate(weight = 1 / n()) %>%
     ungroup() %>%
     mutate(reads = reads * weight) %>%
@@ -241,8 +241,11 @@ load_metadata <- function(filename){
     pivot_wider(names_from = taxonomic_rank,
                 values_from = taxonomic_paths) %>%
     select(-OTU, -identity, -references) %>%
-    count(samples, domain, phylum, class, order, family, genus,
+    count(soil_code, domain, phylum, class, order, family, genus,
           wt = reads, name = "reads") -> group_taxa_per_sample
+
+. %>%
+    left_join(metadata, by = "soil_code") -> add_metadata
 ```
 
 
@@ -258,14 +261,11 @@ load_metadata(metadata_file) -> metadata
 
 ### weight taxonomic assignments
 
-- re-replicate the occurrence table,
-- merge with the occurrence table,
-- fold,
-- match taxa name and rank,
-- unfold,
-- result should be a table of accession paths with 20 levels
+The goal is to avoid stars '*', by going back to the situation before
+the strict assignment to the last common ancestor.
 
-There are cases of a duplicated level in some Silva entries:
+Note: there are cases of a duplicated level in some Silva entries
+
 ```
 >X92360.1.1415 Bacteria;Actinobacteriota;Actinobacteria;Frankiales;Geodermatophilaceae;Geodermatophilus;Geodermatophilus
 ```
@@ -280,15 +280,20 @@ load_clean_16S_occurrence_data(input) %>%
     compute_weight_per_reference %>%
     add_taxonomic_data %>%
     add_taxonomic_ranks %>%
-    group_taxa_per_sample -> taxa_per_sample_table
+    group_taxa_per_sample %>%
+    add_metadata -> taxa_per_sample_table
 ```
 
 ```{r}
+taxa_per_sample_table
 rm(taxa2ranks, references2taxonomic_paths)
 ls()
 ```
 
 roadmap:
+- add taxonomic barchart,
+- save table to results,
+- move nitrogen stuff to a new Rmd file,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
   only one genus with that function,
 - remove n_max limitations,
