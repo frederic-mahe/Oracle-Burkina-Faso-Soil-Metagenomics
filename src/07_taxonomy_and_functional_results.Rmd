@@ -157,7 +157,33 @@ rm(find_duplicated_ranks, d, ban_some_taxa_and_ranks,
 
 ### Silva SSU NR99 references
 
-- load taxonomic names and accession numbers,
+parse reference fasta sequences, keep only headers. Note that the
+accession number and taxonomic paths are separated by a space, but
+additional spaces can appear in taxonomic paths. That's why I replace
+the first space with '@', and then use '@' as a field separator.
+
+```{r, warning = FALSE}
+silva_SSURef_NR99 <- "SILVA_138.1_SSURef_NR99_tax_silva.fasta.gz"
+
+here::here("data", "Silva", silva_SSURef_NR99) %>%
+    read_delim(delim = ">",
+               n_max = 100,
+               col_names = c("sequence", "header"),
+               col_select = c(header), show_col_types = FALSE) %>%
+    drop_na() %>%
+    mutate(header = str_replace(header, " ", "@")) %>%
+    separate(col = header,
+             into = c("accessions", "taxonomic_paths"),
+             sep = "@") -> accessions2taxonomic_paths
+
+rm(silva_SSURef_NR99)
+```
+
+
+### next
+
+- re-replicate the occurrence table,
+- merge with the occurrence table,
 - fold,
 - match taxa name and rank,
 - unfold,
