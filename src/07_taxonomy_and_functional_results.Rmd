@@ -73,8 +73,8 @@ rm(download_if_missing)
 #### variables and functions
 
 ```{r}
-column_names <- c("taxonomic_path", "taxid", "taxonomic_rank", "remark", "release")
-columns_to_keep <- c("taxonomic_path", "taxonomic_rank")
+column_names <- c("taxonomic_paths", "taxid", "taxonomic_rank", "remark", "release")
+columns_to_keep <- c("taxonomic_paths", "taxonomic_rank")
 ```
 
 ```{r}
@@ -87,20 +87,20 @@ load_tax_slv_data <- function(tax_slv_data) {
 }
 
 . %>%
-    mutate(taxonomic_path = str_remove(taxonomic_path, ";$"),
-           taxonomic_path = str_remove(taxonomic_path, ".*;")) %>%
-    arrange(taxonomic_path) %>%
-    count(taxonomic_path, taxonomic_rank) -> link_taxa_and_ranks
+    mutate(taxonomic_paths = str_remove(taxonomic_paths, ";$"),
+           taxonomic_paths = str_remove(taxonomic_paths, ".*;")) %>%
+    arrange(taxonomic_paths) %>%
+    count(taxonomic_paths, taxonomic_rank) -> link_taxa_and_ranks
 
 . %>%
-    count(taxonomic_path) %>%
+    count(taxonomic_paths) %>%
     filter(n > 1) -> find_duplicated_ranks
 
 . %>%
-    filter(! taxonomic_path %in% c("Incertae Sedis", "uncultured") &
-           ! (taxonomic_path == "SAR" & taxonomic_rank == "phylum") &
-           ! (taxonomic_path == "Stramenopiles" & taxonomic_rank == "subphylum") &
-           ! (taxonomic_path == "Labyrinthulomycetes" & taxonomic_rank == "class")) %>%
+    filter(! taxonomic_paths %in% c("Incertae Sedis", "uncultured") &
+           ! (taxonomic_paths == "SAR" & taxonomic_rank == "phylum") &
+           ! (taxonomic_paths == "Stramenopiles" & taxonomic_rank == "subphylum") &
+           ! (taxonomic_paths == "Labyrinthulomycetes" & taxonomic_rank == "class")) %>%
     select(-n) -> ban_some_taxa_and_ranks
 ```
 
@@ -167,27 +167,17 @@ silva_SSURef_NR99 <- "SILVA_138.1_SSURef_NR99_tax_silva.fasta.gz"
 
 here::here("data", "Silva", silva_SSURef_NR99) %>%
     read_delim(delim = ">",
-               n_max = 100,
+               n_max = 100000,
                col_names = c("sequence", "header"),
                col_select = c(header), show_col_types = FALSE) %>%
     drop_na() %>%
     mutate(header = str_replace(header, " ", "@")) %>%
     separate(col = header,
-             into = c("accessions", "taxonomic_paths"),
-             sep = "@") -> accessions2taxonomic_paths
+             into = c("references", "taxonomic_paths"),
+             sep = "@") -> references2taxonomic_paths
 
 rm(silva_SSURef_NR99)
 ```
-
-
-### next
-
-- re-replicate the occurrence table,
-- merge with the occurrence table,
-- fold,
-- match taxa name and rank,
-- unfold,
-- result should be a table of accession paths with 20 levels
 
 
 ### 16S occurrence data
@@ -205,7 +195,9 @@ seed <- 123
 ```{r}
 load_clean_16S_occurrence_data <- function(filename){
     here::here("data", "MetaB_t0", filename) %>%
-        read_tsv(show_col_types = FALSE)
+        read_tsv(na = c("", "NA", "No_hit", "0", "0.0"),
+                 n_max = 1000,
+                 show_col_types = FALSE)
 }
 
 load_metadata <- function(filename){
@@ -215,28 +207,60 @@ load_metadata <- function(filename){
         mutate(soil_code = str_replace_all(soil_code, "_", "-"),
                soil_code = str_replace(soil_code, "-0(?=[1-9]$)", "-"))
 }
+
+. %>%
+    select(OTU, identity, references, starts_with("BU-")) %>%
+    pivot_longer(cols = starts_with("BU-"),
+                 names_to = "samples",
+                 values_to = "reads",
+                 values_drop_na = TRUE) %>%
+    separate_rows(references, sep = ",") %>%
+    group_by(OTU, samples) %>%
+    mutate(weight = 1 / n()) %>%
+    ungroup() %>%
+    mutate(reads = reads * weight) %>%
+    select(-weight) -> compute_weight_per_reference
+
+. %>%
+    left_join(references2taxonomic_paths,
+              by = "references") %>%
+    separate_rows(taxonomic_paths, sep = ";") -> add_taxonomic_data
+
+. %>%
+    left_join(taxa2ranks, by = "taxonomic_paths") -> add_taxonomic_ranks
 ```
 
 
 #### load occurrence data
 
 ```{r}
-load_clean_16S_occurrence_data(input) -> full_occurrence_table
+## load_clean_16S_occurrence_data(input) -> full_occurrence_table
 load_metadata(metadata_file) -> metadata
 ```
 
 
 ## taxonomy
 
-### format and fix
+### weight taxonomic assignments
 
-to be completed
+- re-replicate the occurrence table,
+- merge with the occurrence table,
+- fold,
+- match taxa name and rank,
+- unfold,
+- result should be a table of accession paths with 20 levels
 
+```{r}
+load_clean_16S_occurrence_data(input) %>%
+    compute_weight_per_reference %>%
+    add_taxonomic_data %>%
+    add_taxonomic_ranks
+```
 
 roadmap:
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
   only one genus with that function,
-
+- remove n_max limitations,
 
 ***
 
