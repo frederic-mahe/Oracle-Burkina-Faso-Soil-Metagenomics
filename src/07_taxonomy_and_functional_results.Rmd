@@ -164,19 +164,25 @@ the first space with '@', and then use '@' as a field separator.
 
 ```{r, warning = FALSE}
 silva_SSURef_NR99 <- "SILVA_138.1_SSURef_NR99_tax_silva.fasta.gz"
+preprocessed_silva_SSURef_NR99 <- "SILVA_138.1_SSURef_NR99_tax_silva.txt.gz"
 
-here::here("data", "Silva", silva_SSURef_NR99) %>%
-    read_delim(delim = ">",
-               n_max = 100000,
-               col_names = c("sequence", "header"),
-               col_select = c(header), show_col_types = FALSE) %>%
-    drop_na() %>%
-    mutate(header = str_replace(header, " ", "@")) %>%
-    separate(col = header,
-             into = c("references", "taxonomic_paths"),
-             sep = "@") -> references2taxonomic_paths
+if (file.exists(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))) {
+    here::here("data", "Silva", preprocessed_silva_SSURef_NR99) %>%
+        read_tsv(col_names = c("references", "taxonomic_paths"),
+                 show_col_types = FALSE) -> references2taxonomic_paths
+} else {
+    here::here("data", "Silva", silva_SSURef_NR99) %>%
+        read_delim(delim = ">",
+                   col_names = c("sequence", "header"),
+                   col_select = c(header), show_col_types = FALSE) %>%
+        drop_na() %>%
+        mutate(header = str_replace(header, " ", "@")) %>%
+        separate(col = header,
+                 into = c("references", "taxonomic_paths"),
+                 sep = "@") -> references2taxonomic_paths
+}
 
-rm(silva_SSURef_NR99)
+rm(silva_SSURef_NR99, preprocessed_silva_SSURef_NR99)
 ```
 
 
@@ -196,7 +202,7 @@ seed <- 123
 load_clean_16S_occurrence_data <- function(filename){
     here::here("data", "MetaB_t0", filename) %>%
         read_tsv(na = c("", "NA", "No_hit", "0", "0.0"),
-                 n_max = 1000,
+                 n_max = 10000,
                  show_col_types = FALSE)
 }
 
@@ -227,7 +233,16 @@ load_metadata <- function(filename){
     separate_rows(taxonomic_paths, sep = ";") -> add_taxonomic_data
 
 . %>%
-    left_join(taxa2ranks, by = "taxonomic_paths") -> add_taxonomic_ranks
+    left_join(taxa2ranks, by = "taxonomic_paths") %>%
+    filter(! is.na(taxonomic_rank)) %>%
+    distinct() -> add_taxonomic_ranks
+
+. %>%
+    pivot_wider(names_from = taxonomic_rank,
+                values_from = taxonomic_paths) %>%
+    select(-OTU, -identity, -references) %>%
+    count(samples, domain, phylum, class, order, family, genus,
+          wt = reads, name = "reads") -> group_taxa_per_sample
 ```
 
 
@@ -250,11 +265,27 @@ load_metadata(metadata_file) -> metadata
 - unfold,
 - result should be a table of accession paths with 20 levels
 
+There are cases of a duplicated level in some Silva entries:
+```
+>X92360.1.1415 Bacteria;Actinobacteriota;Actinobacteria;Frankiales;Geodermatophilaceae;Geodermatophilus;Geodermatophilus
+```
+
+Here the genus name is repeated. A call to `distinct()` solves the
+issue, but that's not ideal.
+
+Note: slv is limited to genus, no species rank.
+
 ```{r}
 load_clean_16S_occurrence_data(input) %>%
     compute_weight_per_reference %>%
     add_taxonomic_data %>%
-    add_taxonomic_ranks
+    add_taxonomic_ranks %>%
+    group_taxa_per_sample -> taxa_per_sample_table
+```
+
+```{r}
+rm(taxa2ranks, references2taxonomic_paths)
+ls()
 ```
 
 roadmap:
