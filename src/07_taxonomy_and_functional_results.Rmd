@@ -193,6 +193,7 @@ rm(silva_SSURef_NR99, preprocessed_silva_SSURef_NR99)
 
 ```{r}
 input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstringOTUs.mumu.table3"
+new_taxonomy_table <- str_replace(input, "table3", "table4")
 metadata_file <- "metadata.txt"
 useful_metadata <- c("OTU", "total", "amplicon", "length", "abundance",
                      "spread", "identity", "taxonomy", "references")
@@ -302,6 +303,10 @@ full_occurrence_table %>%
 
 ```{r}
 taxa_per_sample_table
+
+taxa_per_sample_table %>%
+    write_tsv(file = here::here("data", "MetaB_t0", new_taxonomy_table))
+
 rm(taxa2ranks, references2taxonomic_paths)
 ls()
 ```
