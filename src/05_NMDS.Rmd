@@ -118,12 +118,27 @@ ggplot(data = d,
     theme_bw(base_size = 16) +
     ggtitle(title) +
     annotate("text", x = x_min + abs(x_min / 9),
-             y = y_max, label = stress_annotation)
+             y = y_max, label = stress_annotation) -> nmds_plot
 
+nmds_plot
 ## ggsave(output, height = height, width = width)
 ```
 
 No obvious structuration.
+
+Add ellipses representing t-distributions (solid lines) and normal
+distributions (dashed lines):
+
+```{r}
+nmds_plot +
+    stat_ellipse(aes(colour = locality), type = "norm", linetype = 2) +
+    stat_ellipse(aes(colour = locality), type = "t", linetype = 1)
+```
+
+The t-distribution, also known as Student's t-distribution, is a type
+of normal distribution used for smaller sample sizes, where the
+variance in the data is unknown.
+
 
 ***
 
