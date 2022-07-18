@@ -25,6 +25,17 @@ Note that library functions are noted as `package::function()` (for
 example, `vegan::diversity()`), except for tidyverse functions and
 base packages.
 
+#### Taxonomy
+
+temporary code to extract and prepare the Silva taxonomy:
+
+```sh
+cd ./data/Silva/
+
+zgrep "^>" SILVA_138.1_SSURef_NR99_tax_silva.fasta.gz | \
+    sed 's/^>// ; s/ /\t/1' > SILVA_138.1_SSURef_NR99_tax_silva.txt
+```
+
 **Roadmap (16S)**:
 
 - [x] metabarcoding: decontamination and filtering,
