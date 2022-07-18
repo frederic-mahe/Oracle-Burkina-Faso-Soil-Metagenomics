@@ -204,7 +204,6 @@ seed <- 123
 load_clean_16S_occurrence_data <- function(filename){
     here::here("data", "MetaB_t0", filename) %>%
         read_tsv(na = c("", "NA", "No_hit", "0", "0.0"),
-                 n_max = 10000,
                  show_col_types = FALSE)
 }
 
@@ -298,17 +297,10 @@ full_occurrence_table %>%
     add_taxonomic_data %>%
     add_taxonomic_ranks %>%
     group_taxa_per_sample %>%
-    add_metadata -> taxa_per_sample_table
-```
-
-```{r}
-taxa_per_sample_table
-
-taxa_per_sample_table %>%
+    add_metadata %>%
     write_tsv(file = here::here("data", "MetaB_t0", new_taxonomy_table))
 
 rm(taxa2ranks, references2taxonomic_paths)
-ls()
 ```
 
 ### sanity check
@@ -337,8 +329,9 @@ rm(number_reads_before, number_reads_after)
 ```
 
 As expected, the weight taxonomic assignments operation has no
-significant effect on the number of reads (variation is `r
-reads_variation`).
+significant effect on the number of reads (variation is
+ `r prettyNum(reads_variation, scientific=FALSE, big.mark=",")`
+).
 
 
 roadmap:
@@ -350,7 +343,7 @@ roadmap:
 - move nitrogen stuff to a new Rmd file,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
   only one genus with that function,
-- remove n_max limitations,
+- rename that file,
 
 ***
 
