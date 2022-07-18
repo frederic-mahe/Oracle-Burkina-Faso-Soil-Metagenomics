@@ -171,6 +171,7 @@ if (file.exists(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))) {
         read_tsv(col_names = c("references", "taxonomic_paths"),
                  show_col_types = FALSE) -> references2taxonomic_paths
 } else {
+    ## very slow and potentially broken, prefer shell code (see README.md)
     here::here("data", "Silva", silva_SSURef_NR99) %>%
         read_delim(delim = ">",
                    col_names = c("sequence", "header"),
@@ -252,7 +253,7 @@ load_metadata <- function(filename){
 #### load occurrence data
 
 ```{r}
-## load_clean_16S_occurrence_data(input) -> full_occurrence_table
+load_clean_16S_occurrence_data(input) -> full_occurrence_table
 load_metadata(metadata_file) -> metadata
 ```
 
@@ -263,6 +264,21 @@ load_metadata(metadata_file) -> metadata
 
 The goal is to avoid stars '*', by going back to the situation before
 the strict assignment to the last common ancestor.
+
+For example, let's assume that `OTU1` appears in `Sample1` with 9
+reads, and that `OTU1` is equidistant to three reference sequences
+with the following taxonomic assignments:
+
+- reference1: genusA, speciesX
+- reference2: genusA, speciesY
+- reference3: genusB, speciesZ
+
+`OTU1` is split and each reference receives 3 reads (9 divided by the
+number of matching references). At that point, the OTU information is
+dropped. Taxonomic assignments are then grouped by genus (and higher
+ranks; species ranks is dropped). In the final occurrence table,
+`GenusA` is present in `Sample1` with 6 reads, and `GenusB` with 3
+reads.
 
 Note: there are cases of a duplicated level in some Silva entries
 
@@ -276,7 +292,7 @@ issue, but that's not ideal.
 Note: slv is limited to genus, no species rank.
 
 ```{r}
-load_clean_16S_occurrence_data(input) %>%
+full_occurrence_table %>%
     compute_weight_per_reference %>%
     add_taxonomic_data %>%
     add_taxonomic_ranks %>%
@@ -290,8 +306,40 @@ rm(taxa2ranks, references2taxonomic_paths)
 ls()
 ```
 
+### sanity check
+
+The number of reads before and after the 'weight taxonomic
+assignments' operation should be the same (maybe with a small margin
+due to rounding errors):
+
+```{r}
+full_occurrence_table %>%
+    select(OTU, starts_with("BU-")) %>%
+    pivot_longer(cols = starts_with("BU-"),
+                 names_to = "soil_code",
+                 values_to = "reads",
+                 values_drop_na = TRUE) %>%
+    summarize(sum = sum(reads)) %>%
+    pull() -> number_reads_before
+
+taxa_per_sample_table %>%
+    summarize(sum = sum(reads)) %>%
+    pull() -> number_reads_after
+
+abs(number_reads_before - number_reads_after) -> reads_variation
+
+rm(number_reads_before, number_reads_after)
+```
+
+As expected, the weight taxonomic assignments operation has no
+significant effect on the number of reads (variation is `r
+reads_variation`).
+
+
 roadmap:
-- add taxonomic barchart,
+- NA cells should be marked as unknown?,
+- save final taxonomic table,
+- add taxonomic barcharts,
 - save table to results,
 - move nitrogen stuff to a new Rmd file,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
