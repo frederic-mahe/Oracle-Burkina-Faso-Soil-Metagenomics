@@ -42,7 +42,7 @@ zgrep "^>" SILVA_138.1_SSURef_NR99_tax_silva.fasta.gz | \
 - [x] metabarcoding: alpha diversity,
 - [x] metabarcoding: alpha diversity vs locality,
 - [x] metabarcoding: beta diversity vs locality,
-- [ ] metabarcoding: beta diversity vs locality (make a new plot with
+- [x] metabarcoding: beta diversity vs locality (make a new plot with
       barycenters),
 - [ ] metabarcoding: use 20 taxonomic fields and weighted assignments,
 - [ ] metabarcoding: taxonomy and functions (nitrogen cycle),
