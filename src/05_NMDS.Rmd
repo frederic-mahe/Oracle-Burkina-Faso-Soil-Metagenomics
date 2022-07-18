@@ -91,7 +91,8 @@ extract data scores and add stress value:
 
 stress <- occurrences_t.bray.nmds$stress
 samples <- rownames(occurrences_t)
-data.scores <- as.data.frame(vegan::scores(occurrences_t.bray.nmds))
+data.scores <- as.data.frame(vegan::scores(occurrences_t.bray.nmds,
+                                           display = "sites"))
 data.scores$samples <- rownames(data.scores)
 
 x_min <- min(data.scores$NMDS1)
