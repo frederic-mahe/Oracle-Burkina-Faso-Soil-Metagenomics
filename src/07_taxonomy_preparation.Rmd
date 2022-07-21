@@ -297,7 +297,9 @@ full_occurrence_table %>%
     add_taxonomic_data %>%
     add_taxonomic_ranks %>%
     group_taxa_per_sample %>%
-    add_metadata %>%
+    add_metadata -> taxa_per_sample_table
+
+taxa_per_sample_table %>%
     write_tsv(file = here::here("data", "MetaB_t0", new_taxonomy_table))
 
 rm(taxa2ranks, references2taxonomic_paths)
@@ -325,7 +327,7 @@ taxa_per_sample_table %>%
 
 abs(number_reads_before - number_reads_after) -> reads_variation
 
-rm(number_reads_before, number_reads_after)
+rm(number_reads_before, number_reads_after, taxa_per_sample_table)
 ```
 
 As expected, the weight taxonomic assignments operation has no
