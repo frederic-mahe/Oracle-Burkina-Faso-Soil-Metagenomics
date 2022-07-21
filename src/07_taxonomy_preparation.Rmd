@@ -334,14 +334,6 @@ significant effect on the number of reads (variation is
 ).
 
 
-roadmap:
-
-- NA cells should be marked as unknown?,
-- add taxonomic barcharts,
-- move nitrogen stuff to a new Rmd file,
-- add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
-  only one genus with that function
-
 ***
 
 ```{r}
