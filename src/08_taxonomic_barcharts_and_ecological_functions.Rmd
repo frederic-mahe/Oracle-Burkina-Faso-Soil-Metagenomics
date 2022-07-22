@@ -140,9 +140,6 @@ Notes regarding family '67-14'. From [Foesel et al.,
 
 roadmap:
 
-- make two functions: lump_and_count(taxonomic_level) and plot_taxonomic_barchart,
-- lump_and_count(taxonomic_level) must rename family to taxonomic_level
-- so plot_taxonomic_barchart can be generic,
 - NA cells should be marked as unknown?,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
   only one genus with that function
