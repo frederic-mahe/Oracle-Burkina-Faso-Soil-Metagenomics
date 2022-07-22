@@ -1,0 +1,155 @@
+---
+title: " Oracle soils Burkina Faso t = 0 (#8) "
+author: "Frédéric Mahé"
+date: '`r format(Sys.time(), "%d %B %Y")`'
+
+output:
+  rmarkdown::html_document:
+    theme: lumen
+    toc: yes
+    toc_float: TRUE
+    keep_md: yes
+    # code_folding: hide
+---
+
+```{r setup, include=FALSE}
+rm(list = ls()) # remove all the object before starting
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+#### load required packages
+
+```{r packages, message=FALSE}
+library(here)
+library(tidyverse)
+library(scales)
+```
+
+
+# SSU rRNA metabarcoding (16S V3-V4)
+
+## variables and functions
+
+```{r}
+input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstringOTUs.mumu.table4"
+cbPalette <- c("#56B4E9", "#E69F00", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#CCCCCC")
+```
+
+```{r}
+load_16S_taxonomic_occurrence_data <- function(filename){
+    here::here("data", "MetaB_t0", filename) %>%
+        read_tsv(show_col_types = FALSE)
+}
+
+
+lump_and_count <- function(taxonomic_level) {
+    taxonomic_level <- sym(taxonomic_level)
+
+    full_occurrence_table %>%
+        filter(domain == "Bacteria") %>%
+        mutate(taxonomic_level = !!taxonomic_level) %>%
+        mutate(taxonomic_level = replace(taxonomic_level, is.na(taxonomic_level), "Unknown")) %>%
+        mutate(taxonomic_level = fct_lump(taxonomic_level, n = length(cbPalette) - 1, w = reads)) %>%
+        count(soil_code, locality, taxonomic_level, wt = reads, name = "reads")
+}
+
+
+plot_taxonomic_barchart <- function(data, legend_title) {
+    ggplot(data = data, aes(x = soil_code, y = reads, fill = taxonomic_level)) +
+        geom_bar(stat = "identity", position = "fill", colour = "gray", size = 0.2) +
+        theme_bw(base_size = 16) +
+        scale_fill_manual(name = legend_title, values = cbPalette) +
+        scale_y_continuous(labels = scales::percent_format()) +
+        ylab("percentage of observed reads") +
+        xlab("") +
+        facet_wrap(vars(locality), scales = "free_x") +
+        theme(axis.text.x  = element_text(angle = 45, vjust = 0.9, hjust = 0.9, size = 10),
+              legend.position = c(0.85, 0.25))
+}
+
+
+lump_and_plot <- function(taxonomic_level) {
+    lump_and_count(taxonomic_level = taxonomic_level) %>%
+        plot_taxonomic_barchart(legend_title = taxonomic_level)
+}
+```
+
+
+## load occurrence data
+
+```{r}
+load_16S_taxonomic_occurrence_data(input) -> full_occurrence_table
+```
+
+
+## taxonomic barcharts
+
+### preamble (domain level)
+
+Archaea only represent a small fraction:
+
+```{r}
+full_occurrence_table %>%
+    count(domain, wt = reads, sort = TRUE, name = "reads")
+```
+
+However, Archaea could play an ecological role:
+
+```{r}
+full_occurrence_table %>%
+    filter(domain == "Archaea") %>%
+    count(family, wt = reads, sort = TRUE, name = "reads")
+```
+
+
+### focus on Bacteria
+
+```{r, fig.width=14, fig.height=10}
+lump_and_plot(taxonomic_level = "phylum")
+lump_and_plot(taxonomic_level = "class")
+lump_and_plot(taxonomic_level = "order")
+lump_and_plot(taxonomic_level = "family")
+lump_and_plot(taxonomic_level = "genus")
+```
+
+
+Top bacterial family assignments:
+
+```{r}
+full_occurrence_table %>%
+    filter(domain == "Bacteria") %>%
+    count(family, wt = reads, sort = TRUE, name = "reads") %>%
+    slice_head(n = 15)
+```
+
+Notes regarding family '67-14'. From [Foesel et al.,
+2016](https://doi.org/10.1099/ijsem.0.000770) (modified):
+
+> Within the order Solirubrobacterales of the class
+> Thermoleophilia. Gram-type-positive, non-spore-forming bacteria,
+> some strains were isolated from Namibian semiarid savannah soils and
+> are aerobic, chemoheterotrophic mesophiles with broad temperature
+> (13-43 °C) and pH (pH 4.5-9.5) ranges for growth.
+
+
+
+## ecological functions involving nitrogen
+
+
+roadmap:
+
+- make two functions: lump_and_count(taxonomic_level) and plot_taxonomic_barchart,
+- lump_and_count(taxonomic_level) must rename family to taxonomic_level
+- so plot_taxonomic_barchart can be generic,
+- NA cells should be marked as unknown?,
+- add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
+  only one genus with that function
+
+***
+
+```{r}
+sessionInfo()
+rm(list = ls())
+```
