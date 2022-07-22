@@ -35,6 +35,7 @@ library(scales)
 ```{r}
 input <- "Oracle_soils_16S_341F_785R_87_samples.OTU.filtered.cleaved.nosubstringOTUs.mumu.table4"
 cbPalette <- c("#56B4E9", "#E69F00", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#CCCCCC")
+seed <- 123
 ```
 
 ```{r}
@@ -137,10 +138,36 @@ Notes regarding family '67-14'. From [Foesel et al.,
 
 ## ecological functions involving nitrogen
 
+### major legume nodulating N-fixers
+
+see [Shamseldin et al. (2017)](https://doi.org/10.1007/s13199-016-0462-3):
+
+```{r}
+
+major_legume_nodulating_N_fixers <- c("Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium",
+                                      "Mesorhizobium", "Sinorhizobium", "Ensifer",
+                                      "Bradyrhizobium", "Microvirga")
+
+full_occurrence_table %>%
+    filter(genus %in% major_legume_nodulating_N_fixers)
+
+## next (see previous Rmd file):
+## #{{if Shapiro-Francia test with p<0.05, data need to be transform to reach normality}}
+## set.seed(seed)
+## shapiro.test(tmp$Leg_N_fixers)
+## hist(tmp$Leg_N_fixers)
+## ggqqplot(tmp$Leg_N_fixers, ylab = "abundance")
+
+## #{{select tha data transformation, sqrt(temp),sqrt(sqrt(tmp)), log1p(tmp),log10(tmp), asin(sqrt(tmp/100))}}
+## set.seed(seed)
+## shapiro.test(sqrt(tmp$Leg_N_fixers))
+## hist(sqrt(tmp$Leg_N_fixers))
+## ggqqplot(sqrt(tmp$Leg_N_fixers), ylab = "abundance")
+```
 
 roadmap:
 
-- NA cells should be marked as unknown?,
+- NA should be marked as unknown?,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
   only one genus with that function
 
