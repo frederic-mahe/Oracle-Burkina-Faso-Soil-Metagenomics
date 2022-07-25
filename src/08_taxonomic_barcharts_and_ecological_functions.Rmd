@@ -149,24 +149,67 @@ major_legume_nodulating_N_fixers <- c("Allorhizobium-Neorhizobium-Pararhizobium-
                                       "Bradyrhizobium", "Microvirga")
 
 full_occurrence_table %>%
-    filter(genus %in% major_legume_nodulating_N_fixers)
-
-## next (see previous Rmd file):
-## #{{if Shapiro-Francia test with p<0.05, data need to be transform to reach normality}}
-## set.seed(seed)
-## shapiro.test(tmp$Leg_N_fixers)
-## hist(tmp$Leg_N_fixers)
-## ggqqplot(tmp$Leg_N_fixers, ylab = "abundance")
-
-## #{{select tha data transformation, sqrt(temp),sqrt(sqrt(tmp)), log1p(tmp),log10(tmp), asin(sqrt(tmp/100))}}
-## set.seed(seed)
-## shapiro.test(sqrt(tmp$Leg_N_fixers))
-## hist(sqrt(tmp$Leg_N_fixers))
-## ggqqplot(sqrt(tmp$Leg_N_fixers), ylab = "abundance")
+    filter(genus %in% major_legume_nodulating_N_fixers) %>%
+    count(soil_code, locality, wt = reads, name = "reads") -> filtered_occurrence_table
 ```
+
+
+#### normality test (Shapiro-Francia test)
+
+```{r}
+set.seed(seed)
+shapiro.test(filtered_occurrence_table$reads) -> shapiro_results
+shapiro_results
+```
+
+if Shapiro-Francia test as a p-value < 0.05, data needs to be transformed
+to reach normality. Transformation can be `sqrt()`, `sqrt(sqrt())`,
+`log1p()`, `log10()`, `asin(sqrt(x / 100))`.
+
+```{r}
+if (shapiro_results$p.value < 0.05) {
+    print("normality hypothesis is not supported, use a sqrt(x) transformation:")
+    nodulating_reads <- sqrt(filtered_occurrence_table$reads)
+} else {
+    print("normality hypothesis cannot be rejected, no transformation needed:")
+    nodulating_reads <- filtered_occurrence_table$reads
+}
+
+hist(nodulating_reads)
+print("Quantile-Quantile plot")
+ggpubr::ggqqplot(nodulating_reads, ylab = "Number of reads?")
+
+rm(nodulating_reads, shapiro_results)
+```
+
+
+#### locality effect
+
+##### kruskall Wallis (two groups)
+
+
+```{r}
+make_kruskal_test <- function(ecological_group) {
+    kruskal.test(formula = reads ~ locality,
+                 data = ecological_group,
+                 na.action = na.omit) -> kruskal_results
+
+    kruskal_results$p.value %>%
+        round(digits = 4) %>%
+        paste("Kruskal-Wallis rank sum test",
+              "\nLocality P = ", ., sep = "") -> local_message
+
+    tibble(ecological_group = ecological_group, message = local_message)
+}
+
+make_kruskal_test(ecological_group = filtered_occurrence_table)
+```
+
 
 roadmap:
 
+- apply a transformation when needed, 
+- ask Hervé to review the Nitrogen section,
 - NA should be marked as unknown?,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
   only one genus with that function
