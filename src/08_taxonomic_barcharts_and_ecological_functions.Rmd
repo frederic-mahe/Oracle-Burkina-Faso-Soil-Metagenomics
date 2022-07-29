@@ -217,7 +217,7 @@ select_ecological_group(ecological_group = major_actinorhizal_nodulating_N_fixer
 ##### normality test (Shapiro-Francia test)
 
 ```{r}
-normality_test(occurrence_table = legume_nodulating) -> actinorhizal_nodulating
+normality_test(occurrence_table = actinorhizal_nodulating) -> actinorhizal_nodulating
 hist(actinorhizal_nodulating$reads)
 print("Quantile-Quantile plot")
 ggpubr::ggqqplot(actinorhizal_nodulating$reads, ylab = "Number of reads?")
@@ -328,7 +328,7 @@ bind_rows(
 These test results are used by Hervé in the boxplots.
 
 
-#### clean up
+#### boxplots
 
 ```{r}
 bind_rows(
@@ -337,7 +337,25 @@ bind_rows(
     AOB,
     NOB
 ) -> occurrences
+```
 
+
+```{r}
+occurrences %>%
+    ggplot(aes(x = locality, y = reads, fill = locality)) +
+    geom_boxplot(outlier.shape = NA) +
+    scale_fill_manual(values = cbPalette) +
+    geom_jitter(position = position_jitter(0.1),
+                alpha = 1/5, cex = 2.5) +
+    facet_wrap(vars(group_name), scales = "free_y") +
+    xlab("") +
+    theme_bw(base_size = 16)
+```
+
+
+#### clean up
+
+```{r}
 rm(full_occurrence_table, legume_nodulating, actinorhizal_nodulating, AOB, NOB)
 ls()
 ```
@@ -349,6 +367,9 @@ roadmap:
   - transform if not normal
   - make Kruskall test
   - make Dunn test
+- boxplot:
+  - add locality colors,
+  - add Kruskal results to each facet,
 - apply a transformation when needed,
 - ask Hervé to review the Nitrogen section,
 - NA should be marked as unknown?,
