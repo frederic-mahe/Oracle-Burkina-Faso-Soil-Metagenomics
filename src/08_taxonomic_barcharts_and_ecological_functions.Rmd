@@ -362,15 +362,8 @@ ls()
 
 roadmap:
 
-- group functions:
-  - filter target genera
-  - transform if not normal
-  - make Kruskall test
-  - make Dunn test
 - boxplot:
-  - add locality colors,
   - add Kruskal results to each facet,
-- apply a transformation when needed,
 - ask Hervé to review the Nitrogen section,
 - NA should be marked as unknown?,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
