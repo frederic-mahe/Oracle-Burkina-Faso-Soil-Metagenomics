@@ -306,7 +306,9 @@ bind_rows(
                       group_name = "AOB Nitrifiers"),
     make_kruskal_test(ecological_group = NOB,
                       group_name = "NOB Nitrifiers")
-) -> kruskal_tests
+) %>%
+    group_by(group_name, message) %>%
+    summarize(ymax = 1.1 * max(ecological_group$reads)) -> kruskal_tests
 ```
 
 
@@ -344,7 +346,7 @@ bind_rows(
 occurrences %>%
     ggplot(aes(x = locality, y = reads, fill = locality)) +
     geom_boxplot(outlier.shape = NA) +
-    scale_fill_manual(values = cbPalette, guide = FALSE) +
+    scale_fill_manual(values = cbPalette, guide = "none") +
     geom_jitter(position = position_jitter(0.1),
                 alpha = 1/5, cex = 2.5) +
     facet_wrap(vars(group_name), scales = "free_y") +
