@@ -344,7 +344,7 @@ bind_rows(
 occurrences %>%
     ggplot(aes(x = locality, y = reads, fill = locality)) +
     geom_boxplot(outlier.shape = NA) +
-    scale_fill_manual(values = cbPalette) +
+    scale_fill_manual(values = cbPalette, guide = FALSE) +
     geom_jitter(position = position_jitter(0.1),
                 alpha = 1/5, cex = 2.5) +
     facet_wrap(vars(group_name), scales = "free_y") +
@@ -364,6 +364,7 @@ roadmap:
 
 - boxplot:
   - add Kruskal results to each facet,
+  - remove useless legend,
 - ask Hervé to review the Nitrogen section,
 - NA should be marked as unknown?,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
