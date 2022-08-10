@@ -308,8 +308,13 @@ bind_rows(
                       group_name = "NOB Nitrifiers")
 ) %>%
     group_by(group_name, message) %>%
-    summarize(ymax = 1.1 * max(ecological_group$reads)) -> kruskal_tests
+    summarize(ymax = 1.1 * max(ecological_group$reads)) %>%
+    ungroup() %>%
+    mutate(group_name = str_replace(group_name, "_", " ")) -> kruskal_tests
 ```
+
+note that the tibble is simplified (only one p-value per ecological
+group), to facilitate the inclusion in facetted boxplots.
 
 
 #### Dunn test (multi groups)
@@ -341,6 +346,17 @@ bind_rows(
 ) -> occurrences
 ```
 
+by default, localities are plotted in alphabetical order, we need to
+know which one is the first:
+
+```{r}
+occurrences %>%
+    distinct(locality) %>%
+    arrange(locality) %>%
+    head(n = 1) %>%
+    pull() -> first_locality
+```
+
 
 ```{r}
 occurrences %>%
@@ -349,6 +365,10 @@ occurrences %>%
     scale_fill_manual(values = cbPalette, guide = "none") +
     geom_jitter(position = position_jitter(0.1),
                 alpha = 1/5, cex = 2.5) +
+    geom_text(data = kruskal_tests,
+              aes(x = first_locality, y = ymax, label = message),
+              inherit.aes = FALSE,
+              hjust = 0.1, vjust = 1) +
     facet_wrap(vars(group_name), scales = "free_y") +
     xlab("") +
     theme_bw(base_size = 16)
@@ -358,15 +378,11 @@ occurrences %>%
 #### clean up
 
 ```{r}
-rm(full_occurrence_table, legume_nodulating, actinorhizal_nodulating, AOB, NOB)
-ls()
+rm(full_occurrence_table, legume_nodulating, actinorhizal_nodulating, AOB, NOB, first_locality)
 ```
 
 roadmap:
 
-- boxplot:
-  - add Kruskal results to each facet,
-  - remove useless legend,
 - ask Hervé to review the Nitrogen section,
 - NA should be marked as unknown?,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
