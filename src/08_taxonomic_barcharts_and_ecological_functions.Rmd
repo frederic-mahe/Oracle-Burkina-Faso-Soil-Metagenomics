@@ -24,7 +24,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r packages, message=FALSE}
 library(here)
 library(tidyverse)
-library(scales)
 ```
 
 
