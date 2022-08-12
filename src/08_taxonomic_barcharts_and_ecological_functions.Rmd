@@ -382,6 +382,7 @@ rm(full_occurrence_table, legume_nodulating, actinorhizal_nodulating, AOB, NOB, 
 
 roadmap:
 
+- test git pull,
 - ask Hervé to review the Nitrogen section,
 - NA should be marked as unknown?,
 - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is
