@@ -343,6 +343,301 @@ As expected, there are now
  reads in all samples.
 
 
+
+# shotgun metagenomics (SSU rRNA assignment with kraken)
+
+## filtering and subsampling
+
+In the first sequencing run (SAMA-12), a potential leak between 16
+samples (see list below `dubious_samples`) lead us to order a new
+sequencing (SAMA-21). This new sequencing was done twice (SAMA-21-1
+and SAMA-21-2), with identical parameters. Note that the taxonomic
+assignment was done on both R1 and R2 fastq files, yielding a R1 and
+R2 file for each sample.
+
+Let's assume it is safe to merge the results of SAMA-21-1 and
+SAMA-21-2, and to discard the data from 16 dubious samples
+(SAMA-12). For a given sample, the R1 and R2 assignments are also
+merged.
+
+However, it would be interesting to verify if the initial and
+resequenced dubious samples are similar or not, or more similar to
+their counterpart than to any other sample in the dataset. Similarly,
+comparing the R1 and R2 assignments could be interesting. In other
+words, is there a batch effect?
+
+The best statistical approach for this comparison remains to be
+discussed.
+
+
+### variables and functions
+
+```{r}
+file_prefix <- "oracle_metaGt0_SAMA_"
+file_suffix <- "_samples_kraken2_SSU_assignment_genuses.tsv"
+run_names <- list("21_1", "21_2", "12")
+min_target_size <- 10000  # minimal number of reads
+seed <- 123
+n_subsamplings <- 100
+rarefied_table <- "oracle_metaGt0_79_samples_bracken_SSU_assignment_genuses_rarefied.table3"
+```
+
+```{r}
+load_raw_rRNA_occurrence_data <- function(filename) {
+    here::here("data", "MetaG_t0", filename) %>%
+        read_tsv(show_col_types = FALSE, comment = "# ")
+}
+
+
+infer_name_contruct <- function(run_name) {
+    if (run_name == "SAMA_12") {
+        c("soil_code", "read_pass", "taxo_method")
+    } else {
+        c("soil_code", "tags", "lane", "read_pass", "taxo_method")
+    }
+}
+
+
+parse_sample_names <- function(data, run_name) {
+    data %>%
+        colnames() %>%
+        as_tibble_col(column_name = "sample") %>%
+        filter(str_detect(sample, "^(OR|BU)-")) %>%
+        separate(col = sample,
+                 into = infer_name_contruct(run_name = run_name),
+                 sep = "_",
+                 remove = FALSE,
+                 extra = "drop",
+                 fill = "right") %>%
+        select(sample, soil_code, read_pass, taxo_method) %>%
+        mutate(run = run_name,
+               soil_code = str_remove(soil_code, "OR-"),
+               soil_code = str_replace(soil_code, "([:digit:]+)$", "-\\1"),
+               soil_code = str_replace(soil_code, "--", "-"),
+               soil_code = str_replace(soil_code, "-([:digit:])$", "-0\\1"),
+               taxo_method = replace_na(taxo_method, "kraken"))
+}
+
+
+extract_sample_metadata <- function(filename) {
+    run_name <- str_extract(filename, "SAMA_[:digit:]+(_[:digit:]+)?")
+    
+    load_raw_rRNA_occurrence_data(filename = filename) %>%
+        parse_sample_names(data = ., run_name = run_name)
+}
+
+
+format_occurrence_data <- function(data) {
+    data %>%
+        pivot_longer(cols = matches("^(BU|OR)-"),
+                     names_to = "sample",
+                     values_to = "reads"
+                     )
+}
+
+
+load_and_format_occurrence_data <- function(filename) {
+    
+    load_raw_rRNA_occurrence_data(filename = filename) %>%
+        format_occurrence_data(data = .)
+}
+```
+
+Alternative code for `parse_sample_names()`: `soil_code =
+str_replace(soil_code, "(?<![-[:digit:]])([[:digit:]]+)$",
+"-\\1")`. In the SAMA21 resequencing, soil codes are in the form
+`BU-SER11`, where `BU-SER-11` is expected. To fix that, we could use a
+regular expression replacement. The regex looks for and captures a
+group of one or more digit at the end of the string `[[:digit:]]+$`,
+inserts a '-', and writes the group back. This is fine for SAMA21, but
+nor for SAMA12 where soil codes are already in the form
+`BU-SER-11`. Using the same regex would insert a second '-', like so
+`BU-SER--11`. To avoid that we can use a more complex regex that will
+insert a '-' only if the group of digits is not preceded by a '-' or a
+digit `(?<![-[:digit:]])`.
+
+That may seem too complex, an alternative is to mutate a second time
+to remove extra '-', if any.
+
+
+### preliminary filtering
+
+Extract additional data from sample names (name of the run, R1 or R2,
+assignment method):
+
+```{r}
+imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
+    map_dfr(extract_sample_metadata) -> sequencing_metadata
+```
+
+Make a list of samples to discard and to pool:
+
+```{r}
+sequencing_metadata %>%
+    filter(run != "SAMA_12") %>%
+    distinct(soil_code) %>%
+    pull() -> resequenced_samples
+
+sequencing_metadata %>%
+    filter(run == "SAMA_12" & soil_code %in% resequenced_samples) %>%
+    pull(sample) -> dubious_samples
+```
+
+
+Pool all sequencing results, filter out dubious samples and phantom
+OTUs, keep only the bracken results (recomputed number of reads) and
+reads assigned to Archaea and Bacteria:
+
+warning: each sample is either raw or recomputed by bracken. We choose
+to use the bracken values.
+
+```{r}
+. %>%
+    left_join(sequencing_metadata, by = "sample") %>%
+    filter(! (sample %in% dubious_samples) &
+           str_detect(taxonomy, "^k__(Archaea|Bacteria)") &
+           ! str_detect(taxonomy, "No_hit|Mitochondria|Chloroplast") &
+           taxo_method == "bracken" &
+           reads > 0.0) %>%
+    unite(soil_code, read_pass, col = "samples") %>%
+    count(samples, taxonomy,
+          wt = reads, name = "reads") %>%
+    pivot_wider(names_from = samples,
+                values_from = reads,
+                values_fill = 0) -> reduce_and_pool_resequenced_samples
+
+
+imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
+    map_dfr(load_and_format_occurrence_data) %>%
+    reduce_and_pool_resequenced_samples -> big_table
+```
+
+
+Inspect the distribution:
+
+```{r}
+big_table %>%
+    pivot_longer(cols = matches("^(BU|OR)-"),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    count(samples, wt = reads, name = "reads") %>%
+    arrange(reads) -> sample_sizes
+
+sample_sizes %>%
+    head()
+sample_sizes %>%
+    tail()
+
+sample_sizes %>%
+    head(n = 1) %>%
+    pull(reads) -> smallest_sample_size
+
+rm(sample_sizes)
+```
+
+As expected, there are now 158 samples (80 samples minus one, times
+two for each read pass R1 and R2). The difference between the largest
+and the smallest samples is larger than expected. That should be
+investigated.
+
+Note: in the function `reduce_and_pool_resequenced_samples()`,
+`taxonomy` and `#OTU ID` are equivalent (each ID corresponds to a
+taxonomy, and each taxonomy corresponds to an ID). A bijection in
+mathematical terms. There are no reads assigned to Mitochondria or
+Chloroplast.
+
+
+Clean up:
+
+```{r}
+rm(sample_sizes, file_prefix, file_suffix)
+```
+
+
+### rarefaction (random subsampling)
+
+Randomly subsample the table, so all samples have the same number of
+reads. Repeat the process `r n_subsamplings` times to make sure that
+the final profile is as close as possible to the initial
+distribution. Use a fix seed to make the process 100% repeatable. That
+step can take several minutes to run.
+
+
+Prepare a table for vegan:
+
+```{r}
+big_table %>%
+    select(-taxonomy) %>%
+    t() -> occurrences_t
+```
+
+
+Rarefy and compute average abundances:
+
+```{r}
+set.seed(seed)
+matrix1 <- vegan::rrarefy(occurrences_t, smallest_sample_size)
+for (i in 2:n_subsamplings) {
+    matrix1 <- matrix1 + vegan::rrarefy(occurrences_t, smallest_sample_size)
+}
+
+matrix1 / n_subsamplings -> d_rarefied
+
+rm(i, seed, n_subsamplings, matrix1, occurrences_t)
+```
+
+
+Rebuild and save the newly rarefied OTU table:
+
+```{r}
+. %>%
+    t() %>%
+    as.data.frame() %>%
+    as_tibble() -> transform_back
+
+. %>%
+    bind_cols(big_table %>%
+              select(taxonomy)) %>%
+    relocate(taxonomy,
+             .before = everything()) -> add_taxonomic_assignments
+
+. %>%
+    pivot_longer(cols = matches("^(BU|OR)-"),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    filter(reads > 0) %>%
+    pivot_wider(names_from = samples,
+                values_from = reads,
+                values_fill = 0) -> remove_empty_OTUs
+
+d_rarefied %>%
+    transform_back %>%
+    add_taxonomic_assignments %>%
+    remove_empty_OTUs -> big_table_rarefied
+
+big_table_rarefied %>%
+    write_tsv(file = here::here("data", "MetaG_t0", rarefied_table))
+
+rm(big_table, d_rarefied)
+```
+
+
+How many reads per sample in the final table?
+
+```{r}
+big_table_rarefied %>%
+    pivot_longer(cols = matches("^(BU|OR)-"),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    count(samples, wt = reads, name = "reads") %>%
+    summary()
+```
+
+As expected, there are now
+ `r prettyNum(smallest_sample_size, scientific=FALSE, big.mark=",")`
+ reads in all samples.
+
+
 ***
 
 ```{r}
