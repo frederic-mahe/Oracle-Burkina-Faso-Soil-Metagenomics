@@ -63,6 +63,7 @@ run_names <- list("21_1", "21_2", "12")
 min_target_size <- 10000  # minimal number of reads
 seed <- 123
 n_subsamplings <- 100
+rarefied_table <- "oracle_metaGt0_79_samples_bracken_SSU_assignment_genuses_rarefied.table3"
 ```
 
 ```{r}
@@ -182,28 +183,46 @@ to use the bracken values.
            ! str_detect(taxonomy, "No_hit|Mitochondria|Chloroplast") &
            taxo_method == "bracken" &
            reads > 0.0) %>%
-    count(soil_code, read_pass, taxonomy,
-          wt = reads, name = "reads") -> reduce_and_pool_resequenced_samples
+    unite(soil_code, read_pass, col = "samples") %>%
+    count(samples, taxonomy,
+          wt = reads, name = "reads") %>%
+    pivot_wider(names_from = samples,
+                values_from = reads,
+                values_fill = 0) -> reduce_and_pool_resequenced_samples
 
 
 imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
     map_dfr(load_and_format_occurrence_data) %>%
     reduce_and_pool_resequenced_samples -> big_table
-
-
-big_table %>%
-    count(soil_code, read_pass, wt = reads, name = "reads") %>%
-    arrange(reads) -> sample_sizes
-
-sample_sizes %>% head()
-sample_sizes %>% tail()
-
-sample_sizes %>% head(n = 1) %>% pull(reads) -> smallest_sample_size
-
 ```
 
-The difference between the largest and the smallest samples is larger
-than expected. That should be investigated.
+
+Inspect the distribution:
+
+```{r}
+big_table %>%
+    pivot_longer(cols = matches("^(BU|OR)-"),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    count(samples, wt = reads, name = "reads") %>%
+    arrange(reads) -> sample_sizes
+
+sample_sizes %>%
+    head()
+sample_sizes %>%
+    tail()
+
+sample_sizes %>%
+    head(n = 1) %>%
+    pull(reads) -> smallest_sample_size
+
+rm(sample_sizes)
+```
+
+As expected, there are now 158 samples (80 samples minus one, times
+two for each read pass R1 and R2). The difference between the largest
+and the smallest samples is larger than expected. That should be
+investigated.
 
 Note: in the function `reduce_and_pool_resequenced_samples()`,
 `taxonomy` and `#OTU ID` are equivalent (each ID corresponds to a
@@ -212,7 +231,14 @@ mathematical terms. There are no reads assigned to Mitochondria or
 Chloroplast.
 
 
-### TODO rarefaction (random subsampling)
+Clean up:
+
+```{r}
+rm(sample_sizes, file_prefix, file_suffix)
+```
+
+
+### rarefaction (random subsampling)
 
 Randomly subsample the table, so all samples have the same number of
 reads. Repeat the process `r n_subsamplings` times to make sure that
@@ -221,71 +247,79 @@ distribution. Use a fix seed to make the process 100% repeatable. That
 step can take several minutes to run.
 
 
+Prepare a table for vegan:
+
 ```{r}
-## set.seed(seed)
-## matrix1 <- vegan::rrarefy(occurrences_t, smallest_sample_size)
-## for (i in 2:n_subsamplings) {
-##     matrix1 <- matrix1 + vegan::rrarefy(occurrences_t, smallest_sample_size)
-## }
-
-## matrix1 / n_subsamplings -> d_rarefied
-
-## rm(i, seed, n_subsamplings, d, matrix1)
+big_table %>%
+    select(-taxonomy) %>%
+    t() -> occurrences_t
 ```
 
-Prepare to remove empty OTUs from the final rarefied table:
+
+Rarefy and compute average abundances:
 
 ```{r}
-## . %>%
-##     pivot_longer(cols = starts_with("BU-"),
-##                  names_to = "samples",
-##                  values_to = "reads") %>%
-##     filter(reads > 0) %>%
-##     group_by(OTU) %>%
-##     mutate(total = sum(reads),
-##            spread = n()) %>%
-##     ungroup() %>%
-##     pivot_wider(names_from = samples,
-##                 values_from = reads,
-##                 values_fill = 0) %>%
-##     filter(total > 0) -> remove_empty_OTUs
+set.seed(seed)
+matrix1 <- vegan::rrarefy(occurrences_t, smallest_sample_size)
+for (i in 2:n_subsamplings) {
+    matrix1 <- matrix1 + vegan::rrarefy(occurrences_t, smallest_sample_size)
+}
 
-## . %>%
-##     mutate(total = NA,
-##            abundance = NA,
-##            spread = NA) -> remove_outdated_data
+matrix1 / n_subsamplings -> d_rarefied
+
+rm(i, seed, n_subsamplings, matrix1, occurrences_t)
 ```
 
 
 Rebuild and save the newly rarefied OTU table:
 
 ```{r}
-## bind_cols(metadata,
-##           d_rarefied %>%
-##           t() %>%
-##           as.data.frame() %>%
-##           as_tibble()) %>%
-##     remove_outdated_data %>%
-##     remove_empty_OTUs -> d
+. %>%
+    t() %>%
+    as.data.frame() %>%
+    as_tibble() -> transform_back
 
-## d %>%
-##     write_tsv(file = here::here("data", "MetaB_t0", rarefied_table))
+. %>%
+    bind_cols(big_table %>%
+              select(taxonomy)) %>%
+    relocate(taxonomy,
+             .before = everything()) -> add_taxonomic_assignments
+
+. %>%
+    pivot_longer(cols = matches("^(BU|OR)-"),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    filter(reads > 0) %>%
+    pivot_wider(names_from = samples,
+                values_from = reads,
+                values_fill = 0) -> remove_empty_OTUs
+
+d_rarefied %>%
+    transform_back %>%
+    add_taxonomic_assignments %>%
+    remove_empty_OTUs -> big_table_rarefied
+
+big_table_rarefied %>%
+    write_tsv(file = here::here("data", "MetaG_t0", rarefied_table))
+
+rm(big_table, d_rarefied)
 ```
+
 
 How many reads per sample in the final table?
 
 ```{r}
-## d %>%
-##     pivot_longer(cols = starts_with("BU-"),
-##                  names_to = "samples",
-##                  values_to = "reads") %>%
-##     count(samples, wt = reads, name = "reads") %>%
-##     summary()
-
-## rm(d, d_rarefied)
+big_table_rarefied %>%
+    pivot_longer(cols = matches("^(BU|OR)-"),
+                 names_to = "samples",
+                 values_to = "reads") %>%
+    count(samples, wt = reads, name = "reads") %>%
+    summary()
 ```
 
-As expected, there are now ... reads in all samples.
+As expected, there are now
+ `r prettyNum(smallest_sample_size, scientific=FALSE, big.mark=",")`
+ reads in all samples.
 
 
 ***
