@@ -63,35 +63,30 @@ load_clean_16S_occurrence_data(folder = data_folder,
 
 ### computation
 
-extract only occurrences and transpose for vegan
-
-```{r}
-full_occurrence_table %>%
-    select(-all_of(useful_metadata)) %>%
-    t() -> occurrences_t
-```
-
-Bray-Curtis dissimilarity matrix:
-
-```{r}
-occurrences_t.bray <- vegan::vegdist(occurrences_t, method = "bray")
-```
-
-NMDS ordination:
+extract occurrence values, transpose for vegan, dissimilarity matrix
+(Bray-Curtis), ordination:
 
 ```{r}
 set.seed(seed)
-occurrences_t.bray.nmds <- vegan::metaMDS(occurrences_t.bray)
+
+full_occurrence_table %>%
+    select(-all_of(useful_metadata)) %>%
+    t() %>%
+    vegan::vegdist(., method = "bray") %>%
+    vegan::metaMDS() -> occurrences_t.bray.nmds
 ```
+
 
 ### prepare results
 
 extract data scores and add stress value:
 
 ```{r}
+full_occurrence_table %>%
+    select(-all_of(useful_metadata)) %>%
+    colnames() -> samples
 
 stress <- occurrences_t.bray.nmds$stress
-samples <- rownames(occurrences_t)
 data.scores <- as.data.frame(vegan::scores(occurrences_t.bray.nmds,
                                            display = "sites"))
 data.scores$samples <- rownames(data.scores)
@@ -145,9 +140,8 @@ Clean up:
 
 ```{r}
 rm(data.scores, full_occurrence_table, input, nmds_plot,
-   occurrences_t, occurrences_t.bray, occurrences_t.bray.nmds,
-   samples, stress, stress_annotation, title, useful_metadata, x_min,
-   y_max)
+   occurrences_t.bray.nmds, samples, stress, stress_annotation, title,
+   useful_metadata, x_min, y_max)
 ```
 
 
@@ -177,35 +171,30 @@ load_clean_16S_occurrence_data(folder = data_folder,
 
 ### computation
 
-extract only occurrences and transpose for vegan
-
-```{r}
-full_occurrence_table %>%
-    select(-all_of(useful_metadata)) %>%
-    t() -> occurrences_t
-```
-
-Bray-Curtis dissimilarity matrix:
-
-```{r}
-occurrences_t.bray <- vegan::vegdist(occurrences_t, method = "bray")
-```
-
-NMDS ordination:
+extract occurrence values, transpose for vegan, dissimilarity matrix
+(Bray-Curtis), ordination:
 
 ```{r}
 set.seed(seed)
-occurrences_t.bray.nmds <- vegan::metaMDS(occurrences_t.bray)
+
+full_occurrence_table %>%
+    select(-all_of(useful_metadata)) %>%
+    t() %>%
+    vegan::vegdist(., method = "bray") %>%
+    vegan::metaMDS() -> occurrences_t.bray.nmds
 ```
+
 
 ### prepare results
 
 extract data scores and add stress value:
 
 ```{r}
+full_occurrence_table %>%
+    select(-all_of(useful_metadata)) %>%
+    colnames() -> samples
 
 stress <- occurrences_t.bray.nmds$stress
-samples <- rownames(occurrences_t)
 data.scores <- as.data.frame(vegan::scores(occurrences_t.bray.nmds,
                                            display = "sites"))
 data.scores$samples <- rownames(data.scores)
