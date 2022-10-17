@@ -86,16 +86,22 @@ compute usual indices
 
 ```{r}
 ## estimated richness
-vegan::estimateR(round(occurrences_t)) -> R
+occurrences_t %>%
+    round(.) %>%
+    vegan::estimateR(.) -> R
+
 
 ## Shannon index H; richness + evenness
-vegan::diversity(occurrences_t, index = "shannon") -> H
+occurrences_t %>%
+    vegan::diversity(., index = "shannon") -> H
 
 ## Simpson's D index; richness + evenness; 0-1; 1 - D rises as evenness increases
-vegan::diversity(occurrences_t, index = "invsimpson") -> inv_D
+occurrences_t %>%
+    vegan::diversity(., index = "invsimpson") -> inv_D
 
 ## species richness
-vegan::specnumber(occurrences_t) -> S
+occurrences_t %>%
+    vegan::specnumber(.) -> S
 
 ## Pielou’s index of evenness; 0-1, 1 = max. evenness
 H / log(S) -> J
@@ -157,21 +163,20 @@ to build a new tibble.
 ```{r}
 R %>%
     t() %>%
-    as_tibble(rownames = "soil_code") -> estimated_richness
-
-tibble(estimated_richness,
-       Shannon = H,
-       Inv_Simpson = inv_D,
-       Pielou = J,
-       Hill_Richness = dR,
-       Hill_Shannon = dREr,
-       Hill_Inv_Simpson = dREa,
-       Hill_Shannon_evenness = eDRr,
-       Hill_Simpson_evenness = eDRa) %>%
+    as_tibble(rownames = "soil_code") %>%
+    mutate(Shannon = H,
+           Inv_Simpson = inv_D,
+           Pielou = J,
+           Hill_Richness = dR,
+           Hill_Shannon = dREr,
+           Hill_Inv_Simpson = dREa,
+           Hill_Shannon_evenness = eDRr,
+           Hill_Simpson_evenness = eDRa) %>%
     left_join(metadata, by = "soil_code") -> Indices_bact
 
+
 ## clean up
-rm(R, H, inv_D, J, dR, dREr, dREa, eDRr, eDRa, estimated_richness)
+rm(R, H, inv_D, J, dR, dREr, dREa, eDRr, eDRa)
 ```
 
 
@@ -184,7 +189,11 @@ Pearson chi-squared test for the composite hypothesis of normality
 
 ```{r}
 set.seed(seed)
-shapiro.test(Indices_bact$Hill_Richness) -> shapiro_results
+
+Indices_bact %>%
+    pull(Hill_Richness) %>%
+    shapiro.test(.) -> shapiro_results
+
 shapiro_results
 ```
 
@@ -288,7 +297,6 @@ locality_labels <- c("Raguitenga\n(Korsimoro)",
                      "Sera\n(Boussouma)",
                      "Yilou\n(Guibare)")
 locality_colpalette <- c("#0073C2FF","#7AA6DCFF", "#A73030FF", "#CD534CFF", "#EFC000FF")
-## output <- "Boxplot_bact_diversity_locality.pdf"  # fix: use here::here
 ```
 
 plot function, reusable for several diversity indices. The function
@@ -298,6 +306,7 @@ as a column name in `data`:
 ```{r}
 make_boxplot <- function(diversity_index, subtitle, y_axis_label) {
     diversity_index <- sym(diversity_index)  # symbol from a string
+
     ggplot(data = Indices_bact,
            aes(x = locality, y = !!diversity_index)) +
         geom_boxplot(aes(fill = locality), outlier.shape = NA) +
