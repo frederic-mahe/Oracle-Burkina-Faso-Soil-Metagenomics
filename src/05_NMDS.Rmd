@@ -54,7 +54,7 @@ load_clean_16S_occurrence_data <- function(folder, filename){
     select(-all_of(useful_metadata)) %>%
     t() %>%
     vegan::vegdist(., method = "bray") %>%
-    vegan::metaMDS() -> compute_NMDS_coordinates
+    vegan::metaMDS(.) -> compute_NMDS_coordinates
 
 . %>%
     vegan::scores(., display = "sites") %>%
