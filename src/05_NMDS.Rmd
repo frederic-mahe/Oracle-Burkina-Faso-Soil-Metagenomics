@@ -90,8 +90,13 @@ occurrences_t.bray.nmds %>%
              into = c("country", "locality", "sample"),
              sep = "-") -> data.scores
 
-x_min <- min(data.scores$NMDS1)
-y_max <- max(data.scores$NMDS2)
+data.scores %>%
+    select(NMDS1) %>%
+    min() -> x_min
+
+data.scores %>%
+    select(NMDS2) %>%
+    max() -> y_max
 
 occurrences_t.bray.nmds$stress %>%
     round(., digits = 4) %>%
@@ -194,8 +199,13 @@ occurrences_t.bray.nmds %>%
              into = c("country", "locality", "sample"),
              sep = "-") -> data.scores
 
-x_min <- min(data.scores$NMDS1)
-y_max <- max(data.scores$NMDS2)
+data.scores %>%
+    select(NMDS1) %>%
+    min() -> x_min
+
+data.scores %>%
+    select(NMDS2) %>%
+    max() -> y_max
 
 occurrences_t.bray.nmds$stress %>%
     round(., digits = 4) %>%
