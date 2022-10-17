@@ -51,6 +51,12 @@ load_clean_16S_occurrence_data <- function(folder, filename){
 }
 
 . %>%
+    select(-all_of(useful_metadata)) %>%
+    t() %>%
+    vegan::vegdist(., method = "bray") %>%
+    vegan::metaMDS() -> compute_NMDS_coordinates
+
+. %>%
     vegan::scores(., display = "sites") %>%
     as.data.frame() %>%
     rownames_to_column(var = "samples") %>%
@@ -83,10 +89,7 @@ extract occurrence values, transpose for vegan, dissimilarity matrix
 set.seed(seed)
 
 full_occurrence_table %>%
-    select(-all_of(useful_metadata)) %>%
-    t() %>%
-    vegan::vegdist(., method = "bray") %>%
-    vegan::metaMDS() -> occurrences_t.bray.nmds
+    compute_NMDS_coordinates -> occurrences_t.bray.nmds
 ```
 
 
@@ -147,8 +150,8 @@ Clean up:
 
 ```{r}
 rm(data.scores, full_occurrence_table, input, nmds_plot,
-   occurrences_t.bray.nmds, samples, stress_annotation, title,
-   useful_metadata, x_min, y_max)
+   occurrences_t.bray.nmds, stress_annotation, title, useful_metadata,
+   x_min, y_max)
 ```
 
 
@@ -185,10 +188,7 @@ extract occurrence values, transpose for vegan, dissimilarity matrix
 set.seed(seed)
 
 full_occurrence_table %>%
-    select(-all_of(useful_metadata)) %>%
-    t() %>%
-    vegan::vegdist(., method = "bray") %>%
-    vegan::metaMDS() -> occurrences_t.bray.nmds
+    compute_NMDS_coordinates -> occurrences_t.bray.nmds
 ```
 
 
