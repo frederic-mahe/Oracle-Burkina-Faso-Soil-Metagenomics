@@ -125,7 +125,6 @@ ggplot(data = data.scores,
              y = y_max, label = stress_annotation) -> nmds_plot
 
 nmds_plot
-## ggsave(output, height = height, width = width)
 ```
 
 No obvious structuration.
