@@ -70,14 +70,6 @@ load_clean_16S_occurrence_data <- function(folder, filename){
 ```
 
 
-### load data
-
-```{r}
-load_clean_16S_occurrence_data(folder = data_folder,
-                               filename = input) -> full_occurrence_table
-```
-
-
 ## NMDS
 
 ### computation
@@ -88,7 +80,8 @@ extract occurrence values, transpose for vegan, dissimilarity matrix
 ```{r}
 set.seed(seed)
 
-full_occurrence_table %>%
+load_clean_16S_occurrence_data(folder = data_folder,
+                               filename = input) %>%
     compute_NMDS_coordinates -> occurrences_t.bray.nmds
 ```
 
@@ -149,9 +142,8 @@ variance in the data is unknown.
 Clean up:
 
 ```{r}
-rm(data.scores, full_occurrence_table, input, nmds_plot,
-   occurrences_t.bray.nmds, stress_annotation, title, useful_metadata,
-   x_min, y_max)
+rm(data.scores, input, nmds_plot, occurrences_t.bray.nmds,
+   stress_annotation, title, useful_metadata, x_min, y_max)
 ```
 
 
@@ -169,14 +161,6 @@ useful_metadata <- c("taxonomy")
 ```
 
 
-### load data
-
-```{r}
-load_clean_16S_occurrence_data(folder = data_folder,
-                               filename = input) -> full_occurrence_table
-```
-
-
 ## NMDS
 
 ### computation
@@ -187,7 +171,8 @@ extract occurrence values, transpose for vegan, dissimilarity matrix
 ```{r}
 set.seed(seed)
 
-full_occurrence_table %>%
+load_clean_16S_occurrence_data(folder = data_folder,
+                               filename = input) %>%
     compute_NMDS_coordinates -> occurrences_t.bray.nmds
 ```
 
