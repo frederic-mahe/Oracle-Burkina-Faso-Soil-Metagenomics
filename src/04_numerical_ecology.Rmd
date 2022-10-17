@@ -13,7 +13,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-rm(list = ls()) # remove all the object before starting
+rm(list = ls()) # remove all objects before starting
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -531,8 +531,6 @@ sample_sizes %>%
 sample_sizes %>%
     head(n = 1) %>%
     pull(reads) -> smallest_sample_size
-
-rm(sample_sizes)
 ```
 
 As expected, there are now 158 samples (80 samples minus one, times
