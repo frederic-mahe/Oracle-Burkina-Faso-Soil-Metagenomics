@@ -82,17 +82,15 @@ full_occurrence_table %>%
 extract data scores and add stress value:
 
 ```{r}
-full_occurrence_table %>%
-    select(-all_of(useful_metadata)) %>%
-    colnames() -> samples
-
-stress <- occurrences_t.bray.nmds$stress
-data.scores <- as.data.frame(vegan::scores(occurrences_t.bray.nmds,
-                                           display = "sites"))
-data.scores$samples <- rownames(data.scores)
+occurrences_t.bray.nmds %>%
+    vegan::scores(., display = "sites") %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "samples") -> data.scores
 
 x_min <- min(data.scores$NMDS1)
 y_max <- max(data.scores$NMDS2)
+
+stress <- occurrences_t.bray.nmds$stress
 stress_annotation <- paste("stress: ", round(stress, digits = 4), sep = "")
 ```
 
@@ -102,6 +100,7 @@ parse sample names:
 data.scores %>%
     separate(col = samples, into = c("country", "locality", "sample"), sep = "-") -> d
 ```
+
 
 ### plot
 
@@ -190,17 +189,15 @@ full_occurrence_table %>%
 extract data scores and add stress value:
 
 ```{r}
-full_occurrence_table %>%
-    select(-all_of(useful_metadata)) %>%
-    colnames() -> samples
-
-stress <- occurrences_t.bray.nmds$stress
-data.scores <- as.data.frame(vegan::scores(occurrences_t.bray.nmds,
-                                           display = "sites"))
-data.scores$samples <- rownames(data.scores)
+occurrences_t.bray.nmds %>%
+    vegan::scores(., display = "sites") %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "samples") -> data.scores
 
 x_min <- min(data.scores$NMDS1)
 y_max <- max(data.scores$NMDS2)
+
+stress <- occurrences_t.bray.nmds$stress
 stress_annotation <- paste("stress: ", round(stress, digits = 4), sep = "")
 ```
 
@@ -210,6 +207,7 @@ parse sample names:
 data.scores %>%
     separate(col = samples, into = c("country", "locality", "sample"), sep = "-") -> d
 ```
+
 
 ### plot
 
