@@ -85,7 +85,10 @@ extract data scores and add stress value:
 occurrences_t.bray.nmds %>%
     vegan::scores(., display = "sites") %>%
     as.data.frame() %>%
-    rownames_to_column(var = "samples") -> data.scores
+    rownames_to_column(var = "samples") %>%
+    separate(col = samples,
+             into = c("country", "locality", "sample"),
+             sep = "-") -> data.scores
 
 x_min <- min(data.scores$NMDS1)
 y_max <- max(data.scores$NMDS2)
@@ -95,18 +98,11 @@ occurrences_t.bray.nmds$stress %>%
     paste("stress: ", ., sep = "") -> stress_annotation
 ```
 
-parse sample names:
-
-```{r}
-data.scores %>%
-    separate(col = samples, into = c("country", "locality", "sample"), sep = "-") -> d
-```
-
 
 ### plot
 
 ```{r}
-ggplot(data = d,
+ggplot(data = data.scores,
        aes(x = NMDS1, y = NMDS2, fill = locality)) +
     scale_fill_manual(values = cbPalette) +
     scale_colour_manual(values = cbPalette) +
@@ -193,7 +189,10 @@ extract data scores and add stress value:
 occurrences_t.bray.nmds %>%
     vegan::scores(., display = "sites") %>%
     as.data.frame() %>%
-    rownames_to_column(var = "samples") -> data.scores
+    rownames_to_column(var = "samples") %>%
+    separate(col = samples,
+             into = c("country", "locality", "sample"),
+             sep = "-") -> data.scores
 
 x_min <- min(data.scores$NMDS1)
 y_max <- max(data.scores$NMDS2)
@@ -203,18 +202,11 @@ occurrences_t.bray.nmds$stress %>%
     paste("stress: ", ., sep = "") -> stress_annotation
 ```
 
-parse sample names:
-
-```{r}
-data.scores %>%
-    separate(col = samples, into = c("country", "locality", "sample"), sep = "-") -> d
-```
-
 
 ### plot
 
 ```{r}
-ggplot(data = d,
+ggplot(data = data.scores,
        aes(x = NMDS1, y = NMDS2, fill = locality)) +
     scale_fill_manual(values = cbPalette) +
     scale_colour_manual(values = cbPalette) +
