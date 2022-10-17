@@ -441,6 +441,20 @@ load_and_format_occurrence_data <- function(filename) {
     load_raw_rRNA_occurrence_data(filename = filename) %>%
         format_occurrence_data(data = .)
 }
+
+. %>%
+    left_join(sequencing_metadata, by = "sample") %>%
+    filter(! (sample %in% dubious_samples) &
+           str_detect(taxonomy, "^k__(Archaea|Bacteria)") &
+           ! str_detect(taxonomy, "No_hit|Mitochondria|Chloroplast") &
+           taxo_method == "bracken" &
+           reads > 0.0) %>%
+    unite(soil_code, read_pass, col = "samples") %>%
+    count(samples, taxonomy,
+          wt = reads, name = "reads") %>%
+    pivot_wider(names_from = samples,
+                values_from = reads,
+                values_fill = 0) -> filter_and_pool_resequenced_samples
 ```
 
 Alternative code for `parse_sample_names()`: `soil_code =
@@ -470,50 +484,103 @@ imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
     map_dfr(extract_sample_metadata) -> sequencing_metadata
 ```
 
-Make a list of samples to discard and to pool:
+Make a list of re-sequenced samples:
 
 ```{r}
 sequencing_metadata %>%
     filter(run != "SAMA_12") %>%
     distinct(soil_code) %>%
     pull() -> resequenced_samples
-
-sequencing_metadata %>%
-    filter(run == "SAMA_12" & soil_code %in% resequenced_samples) %>%
-    pull(sample) -> dubious_samples
 ```
 
+
+#### sequencing hodgepodge
+
+Sequencing was done thrice (runs `SAMA_12`, `SAMA_21_1`, `SAMA_21_2`)
+for 16 samples. There are different ways or strategies to deal with
+that:
+
+- 1) complete pool (`SAMA_12` + `SAMA_21_1` + `SAMA_21_2`),
+- 2) partial pool (partial `SAMA_12` + (`SAMA_21_1` + `SAMA_21_2`)),
+- 3) no pool (only `SAMA_12`),
+
+It is also possible to discard `SAMA_12` entirely, but that would
+result in a dataset of only 16 samples (instead of 79):
+
+- no pool (only `SAMA_21_1` + `SAMA_21_2`)
+
+
+#### strategy 1: complete pool
+
+Make a list of dubious samples (i.e., samples that will be excluded):
+
+```{r}
+sequencing_metadata %>%
+    filter(run == "") %>%
+    pull(sample) -> dubious_samples
+```
 
 Pool all sequencing results, filter out dubious samples and phantom
 OTUs, keep only the bracken results (recomputed number of reads) and
 reads assigned to Archaea and Bacteria:
 
+```{r}
+imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
+    map_dfr(load_and_format_occurrence_data) %>%
+    filter_and_pool_resequenced_samples -> big_table
+```
+
 warning: each sample is either raw or recomputed by bracken. We choose
 to use the bracken values.
 
+(strong batch effect)
+
+
+#### strategy 2: partial pool
+
+Make a list of dubious samples (i.e., samples that will be excluded,
+None in that case):
+
 ```{r}
-. %>%
-    left_join(sequencing_metadata, by = "sample") %>%
-    filter(! (sample %in% dubious_samples) &
-           str_detect(taxonomy, "^k__(Archaea|Bacteria)") &
-           ! str_detect(taxonomy, "No_hit|Mitochondria|Chloroplast") &
-           taxo_method == "bracken" &
-           reads > 0.0) %>%
-    unite(soil_code, read_pass, col = "samples") %>%
-    count(samples, taxonomy,
-          wt = reads, name = "reads") %>%
-    pivot_wider(names_from = samples,
-                values_from = reads,
-                values_fill = 0) -> reduce_and_pool_resequenced_samples
-
-
-imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
-    map_dfr(load_and_format_occurrence_data) %>%
-    reduce_and_pool_resequenced_samples -> big_table
+sequencing_metadata %>%
+    filter(run == "SAMA_12" & soil_code %in% resequenced_samples) %>%
+    pull(sample) -> dubious_samples
 ```
 
+filter and pool:
 
-Inspect the distribution:
+```{r}
+imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
+    map_dfr(load_and_format_occurrence_data) %>%
+    filter_and_pool_resequenced_samples -> big_table
+```
+
+(strong batch effect)
+
+
+#### strategy 3: no pool
+
+Make a list of dubious samples (i.e., samples that will be excluded):
+
+```{r}
+sequencing_metadata %>%
+    filter(run != "SAMA_12") %>%
+    pull(sample) -> dubious_samples
+```
+
+filter and pool:
+
+```{r}
+imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
+    map_dfr(load_and_format_occurrence_data) %>%
+    filter_and_pool_resequenced_samples -> big_table
+```
+
+(still a strong batch effect!  This is due to differences between the
+R1 and R2 reads)
+
+
+#### Inspect the distribution
 
 ```{r}
 big_table %>%
@@ -523,6 +590,9 @@ big_table %>%
     count(samples, wt = reads, name = "reads") %>%
     arrange(reads) -> sample_sizes
 
+sample_sizes %>%
+    pull(samples) %>%
+    length()
 sample_sizes %>%
     head()
 sample_sizes %>%
@@ -538,7 +608,7 @@ two for each read pass R1 and R2). The difference between the largest
 and the smallest samples is larger than expected. That should be
 investigated.
 
-Note: in the function `reduce_and_pool_resequenced_samples()`,
+Note: in the function `filter_and_pool_resequenced_samples()`,
 `taxonomy` and `#OTU ID` are equivalent (each ID corresponds to a
 taxonomy, and each taxonomy corresponds to an ID). A bijection in
 mathematical terms. There are no reads assigned to Mitochondria or
