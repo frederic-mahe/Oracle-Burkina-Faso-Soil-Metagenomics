@@ -90,8 +90,9 @@ occurrences_t.bray.nmds %>%
 x_min <- min(data.scores$NMDS1)
 y_max <- max(data.scores$NMDS2)
 
-stress <- occurrences_t.bray.nmds$stress
-stress_annotation <- paste("stress: ", round(stress, digits = 4), sep = "")
+occurrences_t.bray.nmds$stress %>%
+    round(., digits = 4) %>%
+    paste("stress: ", ., sep = "") -> stress_annotation
 ```
 
 parse sample names:
@@ -139,7 +140,7 @@ Clean up:
 
 ```{r}
 rm(data.scores, full_occurrence_table, input, nmds_plot,
-   occurrences_t.bray.nmds, samples, stress, stress_annotation, title,
+   occurrences_t.bray.nmds, samples, stress_annotation, title,
    useful_metadata, x_min, y_max)
 ```
 
@@ -197,8 +198,9 @@ occurrences_t.bray.nmds %>%
 x_min <- min(data.scores$NMDS1)
 y_max <- max(data.scores$NMDS2)
 
-stress <- occurrences_t.bray.nmds$stress
-stress_annotation <- paste("stress: ", round(stress, digits = 4), sep = "")
+occurrences_t.bray.nmds$stress %>%
+    round(., digits = 4) %>%
+    paste("stress: ", ., sep = "") -> stress_annotation
 ```
 
 parse sample names:
