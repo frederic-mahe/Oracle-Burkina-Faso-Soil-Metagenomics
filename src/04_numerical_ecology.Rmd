@@ -496,6 +496,10 @@ sequencing_metadata %>%
 
 #### sequencing hodgepodge
 
+- run `SAMA_12`: 80 samples, 1 failure, 16 samples with a risk of leakage,
+- run `SAMA_21_1`: 16 samples
+- run `SAMA_21_2`: 16 samples (same as `SAMA_21_1`)
+
 Sequencing was done thrice (runs `SAMA_12`, `SAMA_21_1`, `SAMA_21_2`)
 for 16 samples. There are different ways or strategies to deal with
 that:
