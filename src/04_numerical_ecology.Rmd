@@ -480,8 +480,8 @@ Extract additional data from sample names (name of the run, R1 or R2,
 assignment method):
 
 ```{r}
-imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
-    map_dfr(extract_sample_metadata) -> sequencing_metadata
+purrr::imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
+    purrr::map_dfr(extract_sample_metadata) -> sequencing_metadata
 ```
 
 Make a list of re-sequenced samples:
@@ -529,8 +529,8 @@ OTUs, keep only the bracken results (recomputed number of reads) and
 reads assigned to Archaea and Bacteria:
 
 ```{r}
-imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
-    map_dfr(load_and_format_occurrence_data) %>%
+purrr::imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
+    purrr::map_dfr(load_and_format_occurrence_data) %>%
     filter_and_pool_resequenced_samples -> big_table
 ```
 
@@ -554,8 +554,8 @@ sequencing_metadata %>%
 filter and pool:
 
 ```{r}
-imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
-    map_dfr(load_and_format_occurrence_data) %>%
+purrr::imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
+    purrr::map_dfr(load_and_format_occurrence_data) %>%
     filter_and_pool_resequenced_samples -> big_table
 ```
 
@@ -575,8 +575,8 @@ sequencing_metadata %>%
 filter and pool:
 
 ```{r}
-imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
-    map_dfr(load_and_format_occurrence_data) %>%
+purrr::imap(run_names, ~ paste0(file_prefix, .x, file_suffix)) %>%
+    purrr::map_dfr(load_and_format_occurrence_data) %>%
     filter_and_pool_resequenced_samples -> big_table
 ```
 
