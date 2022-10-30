@@ -165,6 +165,14 @@ data_folder <- "MetaG_t0"
 input <- "oracle_metaGt0_79_samples_bracken_SSU_assignment_genuses_rarefied.table3"
 title <- "Oracle MetaG t0 SSU NMDS (79 samples)"
 useful_metadata <- c("taxonomy")
+nmds_plot_file  <- "metaG_NMDS_R1_vs_R2_SAMA_12_only.pdf"
+```
+
+create the results subfolder if need be:
+
+```{r}
+here::here("results", data_folder) %>%
+    dir.create(., showWarnings = FALSE)
 ```
 
 
@@ -233,14 +241,6 @@ ggplot(data = data.scores,
               parse = FALSE) -> nmds_plot
 
 nmds_plot
-
-## create the results subfolder if need be
-here::here("results", "metaG_t0") %>%
-    dir.create(., showWarnings = FALSE)
-
-## save the plot
-here::here("results", "metaG_t0", "metaG_NMDS_R1_vs_R2_SAMA_12_only.pdf") %>%
-    ggsave(plot = nmds_plot, width = 30, height = 15, units = "cm")
 ```
 
 There seems to be a very strong batch effect between sequencing runs
@@ -258,6 +258,13 @@ nmds_plot +
 The t-distribution, also known as Student's t-distribution, is a type
 of normal distribution used for smaller sample sizes, where the
 variance in the data is unknown.
+
+Save the plot:
+
+```{r}
+here::here("results", data_folder, nmds_plot_file) %>%
+    ggsave(plot = nmds_plot, width = 30, height = 15, units = "cm")
+```
 
 
 ***
