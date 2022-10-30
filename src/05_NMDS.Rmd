@@ -62,7 +62,14 @@ load_clean_16S_occurrence_data <- function(folder, filename){
     rownames_to_column(var = "samples") %>%
     separate(col = samples,
              into = c("country", "locality", "sample"),
-             sep = "-") -> extract_NMDS_coordinates
+             sep = "-") %>%
+    separate(col = sample,
+             into = c("sample", "read"),
+             sep = "_") %>%
+    mutate(x_min = min(NMDS1),
+           x_max = max(NMDS1),
+           y_min = min(NMDS2),
+           y_max = max(NMDS2)) -> extract_NMDS_coordinates
 
 . %>%
     round(., digits = 4) %>%
@@ -170,10 +177,16 @@ extract occurrence values, transpose for vegan, dissimilarity matrix
 
 ```{r}
 set.seed(seed)
-
 load_clean_16S_occurrence_data(folder = data_folder,
                                filename = input) %>%
-    compute_NMDS_coordinates -> occurrences_t.bray.nmds
+    select(taxonomy, ends_with("_R1")) %>%
+    compute_NMDS_coordinates -> occurrences_t.bray_R1.nmds
+
+set.seed(seed)
+load_clean_16S_occurrence_data(folder = data_folder,
+                               filename = input) %>%
+    select(taxonomy, ends_with("_R2")) %>%
+    compute_NMDS_coordinates -> occurrences_t.bray_R2.nmds
 ```
 
 
@@ -182,19 +195,19 @@ load_clean_16S_occurrence_data(folder = data_folder,
 extract data scores and add stress value:
 
 ```{r}
-occurrences_t.bray.nmds %>%
-    extract_NMDS_coordinates -> data.scores
+bind_rows(occurrences_t.bray_R1.nmds %>%
+          extract_NMDS_coordinates,
+          occurrences_t.bray_R2.nmds %>%
+          extract_NMDS_coordinates) -> data.scores
 
+## make a reduced table for the facet plot
 data.scores %>%
-    select(NMDS1) %>%
-    min() -> x_min
-
-data.scores %>%
-    select(NMDS2) %>%
-    max() -> y_max
-
-occurrences_t.bray.nmds$stress %>%
-    format_stress_annotation -> stress_annotation
+    select(read, x_min, x_max, y_min, y_max) %>%
+    distinct() %>%
+    mutate(stress_annotation = c(occurrences_t.bray_R1.nmds$stress %>%
+                                 format_stress_annotation,
+                                 occurrences_t.bray_R2.nmds$stress %>%
+                                 format_stress_annotation)) -> per_facet_data
 ```
 
 
@@ -206,12 +219,28 @@ ggplot(data = data.scores,
     scale_fill_manual(values = cbPalette) +
     scale_colour_manual(values = cbPalette) +
     geom_point(size = 6, shape = 21, colour = "black", stroke = 0.5) +
+    geom_text(aes(label = sample), size = 3) +
+    facet_wrap(vars(read), scales = "free") +
     theme_bw(base_size = 16) +
+    theme(strip.text.x = element_text(face = "bold")) +
     ggtitle(title) +
-    annotate("text", x = x_min + abs(x_min / 9),
-             y = y_max, label = stress_annotation) -> nmds_plot
+    geom_text(data = per_facet_data,
+              aes(x = x_min + abs(x_min / 9),
+                  y = y_max,
+                  label = stress_annotation),
+              colour = "black",
+              inherit.aes = FALSE,
+              parse = FALSE) -> nmds_plot
 
 nmds_plot
+
+## create the results subfolder if need be
+here::here("results", "metaG_t0") %>%
+    dir.create(., showWarnings = FALSE)
+
+## save the plot
+here::here("results", "metaG_t0", "metaG_NMDS_R1_vs_R2_SAMA_12_only.pdf") %>%
+    ggsave(plot = nmds_plot, width = 30, height = 15, units = "cm")
 ```
 
 There seems to be a very strong batch effect between sequencing runs
