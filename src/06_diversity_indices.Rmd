@@ -256,7 +256,7 @@ bind_rows(
                 values_from = "message") -> kruskal_results
 ```
 
-Note: `map_dfr(indices, make_kruskal_test)` would make the code
+Note: `purrr::map_dfr(indices, make_kruskal_test)` would make the code
 shorter but does not work.
 
 
