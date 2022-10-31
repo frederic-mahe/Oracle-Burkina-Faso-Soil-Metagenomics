@@ -520,9 +520,9 @@ Make a list of dubious samples (i.e., samples that will be excluded,
 None in that case):
 
 ```{r}
-sequencing_metadata %>%
-    filter(run == "") %>%
-    pull(sample) -> dubious_samples
+## sequencing_metadata %>%
+##     filter(run == "") %>%
+##     pull(sample) -> dubious_samples
 ```
 
 
@@ -543,9 +543,9 @@ i.e. dubious `SAMA_12` samples):
 Use only `SAMA_12`, including dubious samples:
 
 ```{r}
-## sequencing_metadata %>%
-##     filter(run != "SAMA_12") %>%
-##     pull(sample) -> dubious_samples
+sequencing_metadata %>%
+    filter(run != "SAMA_12") %>%
+    pull(sample) -> dubious_samples
 ```
 
 (strong structuration due to differences between the R1 and R2 reads)

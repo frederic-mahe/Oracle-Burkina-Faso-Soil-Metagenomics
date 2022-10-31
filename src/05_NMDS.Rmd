@@ -165,7 +165,7 @@ data_folder <- "MetaG_t0"
 input <- "oracle_metaGt0_79_samples_bracken_SSU_assignment_genuses_rarefied.table3"
 title <- "Oracle MetaG t0 SSU NMDS (79 samples)"
 useful_metadata <- c("taxonomy")
-nmds_plot_file  <- "MetaG_NMDS_R1_vs_R2_complete_pool.pdf"
+nmds_plot_file  <- "MetaG_NMDS_R1_vs_R2_SAMA_12_only.pdf"
 ```
 
 create the results subfolder if need be:
