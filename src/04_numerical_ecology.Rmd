@@ -514,7 +514,7 @@ result in a dataset of only 16 samples (instead of 79):
 - no pool (only `SAMA_21_1` + `SAMA_21_2`)
 
 
-#### strategy 1: complete pool
+##### strategy 1: complete pool
 
 Make a list of dubious samples (i.e., samples that will be excluded,
 None in that case):
@@ -526,26 +526,26 @@ sequencing_metadata %>%
 ```
 
 
-#### strategy 2: partial pool
+##### strategy 2: partial pool
 
 Make a list of dubious samples (i.e., samples that will be excluded,
 i.e. dubious `SAMA_12` samples):
 
 ```{r}
-sequencing_metadata %>%
-    filter(run == "SAMA_12" & soil_code %in% resequenced_samples) %>%
-    pull(sample) -> dubious_samples
+## sequencing_metadata %>%
+##     filter(run == "SAMA_12" & soil_code %in% resequenced_samples) %>%
+##     pull(sample) -> dubious_samples
 ```
 
 
-#### strategy 3: no pool
+##### strategy 3: no pool
 
 Use only `SAMA_12`, including dubious samples:
 
 ```{r}
-sequencing_metadata %>%
-    filter(run != "SAMA_12") %>%
-    pull(sample) -> dubious_samples
+## sequencing_metadata %>%
+##     filter(run != "SAMA_12") %>%
+##     pull(sample) -> dubious_samples
 ```
 
 (strong structuration due to differences between the R1 and R2 reads)
