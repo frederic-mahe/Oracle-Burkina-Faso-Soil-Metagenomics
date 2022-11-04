@@ -1,0 +1,453 @@
+---
+title: " Oracle soils Burkina Faso t = 0 (#8) MetaG "
+author: "Frédéric Mahé"
+date: '`r format(Sys.time(), "%d %B %Y")`'
+
+output:
+  rmarkdown::html_document:
+    theme: lumen
+    toc: yes
+    toc_float: TRUE
+    keep_md: yes
+    # code_folding: hide
+---
+
+```{r setup, include=FALSE}
+rm(list = ls()) # remove all the object before starting
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+#### load required packages
+
+```{r packages, message=FALSE}
+library(here)
+library(tidyverse)
+```
+
+
+# shotgun metagenomics (SSU rRNA assignment with kraken)
+
+## variables and functions
+
+```{r}
+input <- "oracle_metaGt0_79_samples_bracken_SSU_assignment_genuses_rarefied.table3"
+taxonomic_levels <- c("domain", "phylum", "class", "order", "family",
+                      "genus", "species")  # kingdom == domain
+target_taxa <- taxonomic_levels[2:6]
+read_passes <- c("R1", "R2")
+cbPalette <- c("#56B4E9", "#E69F00", "#009E73", "#F0E442", "#0072B2",
+               "#D55E00", "#CC79A7", "#CCCCCC")
+seed <- 123
+```
+
+```{r}
+load_SSU_taxonomic_occurrence_data <- function(filename){
+    here::here("data", "MetaG_t0", filename) %>%
+        read_tsv(show_col_types = FALSE)
+}
+
+
+remove_level_marker <- function(taxonomic_level) {
+    str_remove(taxonomic_level, "^[kpcofgs]__")
+}
+
+
+. %>%
+    separate(col = taxonomy, into = taxonomic_levels, sep = "; ") %>%
+    mutate(across(.cols = where(is.character),
+                  .fns = remove_level_marker)) -> separate_taxonomic_levels
+
+
+. %>%
+    pivot_longer(cols = starts_with("BU-"),
+                 names_to = "soil_code",
+                 values_to = "reads") %>%
+    separate(col = soil_code,
+             into = c("soil_code", "read_pass"),
+             sep = "_") %>%
+    mutate(read_pass = as.factor(read_pass)) -> work_with_R1_and_R2
+
+
+. %>%
+    separate(col = soil_code,
+             into = c(NA, "locality", NA),
+             sep = "-",
+             remove = FALSE) %>%
+    mutate(locality = as.factor(locality),
+           locality = fct_recode(locality,
+                                 Raguitenga = "RT",
+                                 Sera = "SER",
+                                 Boussouma = "ST",
+                                 Tingressene = "TS",
+                                 Yilou = "YL")) -> extract_and_recode_locality
+
+
+lump_and_count <- function(taxonomic_level, target_read_pass) {
+    taxonomic_level <- sym(taxonomic_level)
+
+    full_occurrence_table %>%
+        filter(domain == "Bacteria" & read_pass == target_read_pass) %>%
+        mutate(taxonomic_level = !!taxonomic_level,
+               taxonomic_level = replace(taxonomic_level, is.na(taxonomic_level), "Unknown"),
+               taxonomic_level = as.factor(taxonomic_level),
+               taxonomic_level = fct_lump(taxonomic_level, n = length(cbPalette) - 1, w = reads)) %>%
+        count(soil_code, locality, taxonomic_level, wt = reads, name = "reads")
+}
+
+
+plot_taxonomic_barchart <- function(data, legend_title) {
+    ggplot(data = data, aes(x = soil_code, y = reads, fill = taxonomic_level)) +
+        geom_bar(stat = "identity", position = "fill", colour = "gray", size = 0.2) +
+        theme_bw(base_size = 16) +
+        scale_fill_manual(name = legend_title, values = cbPalette) +
+        scale_y_continuous(labels = scales::percent_format()) +
+        ylab("percentage of observed reads") +
+        xlab("") +
+        facet_wrap(vars(locality), scales = "free_x") +
+        theme(axis.text.x  = element_text(angle = 45, vjust = 0.9, hjust = 0.9, size = 10),
+              legend.position = c(0.85, 0.25))
+}
+
+
+lump_and_plot <- function(taxonomic_level, read_pass) {
+    lump_and_count(taxonomic_level = taxonomic_level,
+                   target_read_pass = read_pass) %>%
+        plot_taxonomic_barchart(legend_title = taxonomic_level)
+}
+
+
+top_bacterial_family_assignments <- function(target_read_pass) {
+    target_read_pass <- sym(target_read_pass)
+
+    full_occurrence_table %>%
+        filter(domain == "Bacteria") %>%
+        count(family, read_pass, wt = reads, name = "reads") %>%
+        pivot_wider(names_from = read_pass, values_from = reads) %>%
+        arrange(desc(!!target_read_pass)) %>%
+        slice_head(n = 15)
+}
+```
+
+
+## load occurrence data
+
+```{r}
+load_SSU_taxonomic_occurrence_data(input) %>%
+    separate_taxonomic_levels %>%
+    work_with_R1_and_R2 %>%
+    extract_and_recode_locality -> full_occurrence_table
+```
+
+
+## taxonomic barcharts
+
+### preamble (domain level)
+
+Archaea represent a small fraction of R2, but 17.44% of R1 reads:
+
+```{r}
+full_occurrence_table %>%
+    count(domain, read_pass, wt = reads, name = "reads")
+```
+
+Archaea could play an ecological role:
+
+```{r}
+full_occurrence_table %>%
+    filter(domain == "Archaea") %>%
+    count(family, read_pass, wt = reads, name = "reads")
+```
+
+Most Archaea reads are assigned to
+[Nitrososphaeraceae](https://en.wikipedia.org/wiki/Nitrososphaera).
+
+
+### focus on Bacteria
+
+```{r, fig.width=14, fig.height=10}
+tibble(taxonomic_level = rep(target_taxa, each = length(read_passes)),
+       read_pass = rep(read_passes, times = length(target_taxa))) %>%
+    purrr::pmap(., ~ lump_and_plot(taxonomic_level = .x, read_pass = .y))
+```
+
+
+Top bacterial family assignments:
+
+```{r}
+read_passes %>%
+    purrr::set_names() %>%
+    purrr::map(., top_bacterial_family_assignments)
+```
+
+Notes regarding family '67-14'. From [Foesel et al.,
+2016](https://doi.org/10.1099/ijsem.0.000770) (modified):
+
+> Within the order Solirubrobacterales of the class
+> Thermoleophilia. Gram-type-positive, non-spore-forming bacteria,
+> some strains were isolated from Namibian semiarid savannah soils and
+> are aerobic, chemoheterotrophic mesophiles with broad temperature
+> (13-43 °C) and pH (pH 4.5-9.5) ranges for growth.
+
+
+
+<!-- ## ecological functions involving nitrogen -->
+
+<!-- Define each ecological group (genus level): -->
+
+<!-- ```{r} -->
+<!-- major_legume_nodulating_N_fixers <- c("Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium", -->
+<!--                                       "Mesorhizobium", "Sinorhizobium", "Ensifer", -->
+<!--                                       "Bradyrhizobium", "Microvirga") -->
+<!-- major_actinorhizal_nodulating_N_fixers <- c("Frankia") -->
+<!-- AOB_Nitrifiers <- c("Nitrosomonas", "Nitrosospira", "Nitrosococcus") -->
+<!-- NOB_Nitrifiers <- c("Nitrobacter", "Nitrospira", "Nitrococcus") -->
+<!-- ``` -->
+
+
+<!-- ### functions -->
+
+<!-- ```{r} -->
+<!-- select_ecological_group <- function(ecological_group, group_name) { -->
+<!--     full_occurrence_table %>% -->
+<!--         filter(genus %in% ecological_group) %>% -->
+<!--         count(soil_code, locality, wt = reads, name = "reads") %>% -->
+<!--         mutate(group_name = group_name) -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- if Shapiro-Francia test as a p-value < 0.05, data needs to be transformed -->
+<!-- to reach normality. Transformation can be `sqrt()`, `sqrt(sqrt())`, -->
+<!-- `log1p()`, `log10()`, `asin(sqrt(x / 100))`. -->
+
+<!-- ```{r} -->
+<!-- normality_test <- function(occurrence_table) { -->
+<!--     set.seed(seed) -->
+<!--     shapiro.test(occurrence_table$reads) -> shapiro_results -->
+<!--     print(paste("Shapiro p-value:", shapiro_results$p.value)) -->
+
+<!--     if (shapiro_results$p.value < 0.05) { -->
+<!--         print("normality hypothesis is not supported, use a sqrt(x) transformation:") -->
+<!--         occurrence_table %>% -->
+<!--             mutate(reads = sqrt(reads)) -> occurrence_table -->
+<!--     } else { -->
+<!--         print("normality hypothesis cannot be rejected, no transformation needed.") -->
+<!--     } -->
+
+<!--     occurrence_table -->
+<!-- } -->
+<!-- ``` -->
+
+
+<!-- ### major legume nodulating N-fixers -->
+
+<!-- see [Shamseldin et al. (2017)](https://doi.org/10.1007/s13199-016-0462-3): -->
+
+<!-- ```{r} -->
+<!-- select_ecological_group(ecological_group = major_legume_nodulating_N_fixers, -->
+<!--                         group_name = "legume nodulating") -> legume_nodulating -->
+<!-- ``` -->
+
+
+<!-- ##### normality test (Shapiro-Francia test) -->
+
+<!-- ```{r} -->
+<!-- normality_test(occurrence_table = legume_nodulating) -> legume_nodulating -->
+<!-- hist(legume_nodulating$reads) -->
+<!-- print("Quantile-Quantile plot") -->
+<!-- ggpubr::ggqqplot(legume_nodulating$reads, ylab = "Number of reads?") -->
+<!-- ``` -->
+
+
+<!-- ### major actinorhizal nodulating N-fixers -->
+
+<!-- *Frankia* is the only known genus in Africa. -->
+
+<!-- ```{r} -->
+<!-- select_ecological_group(ecological_group = major_actinorhizal_nodulating_N_fixers, -->
+<!--                         group_name = "actinorhizal nodulating") -> actinorhizal_nodulating -->
+<!-- ``` -->
+
+
+<!-- ##### normality test (Shapiro-Francia test) -->
+
+<!-- ```{r} -->
+<!-- normality_test(occurrence_table = actinorhizal_nodulating) -> actinorhizal_nodulating -->
+<!-- hist(actinorhizal_nodulating$reads) -->
+<!-- print("Quantile-Quantile plot") -->
+<!-- ggpubr::ggqqplot(actinorhizal_nodulating$reads, ylab = "Number of reads?") -->
+<!-- ``` -->
+
+
+<!-- ### ammonium oxidizing bacteria (AOB Nitrifiers) -->
+
+<!-- ```{r} -->
+<!-- select_ecological_group(ecological_group = AOB_Nitrifiers, -->
+<!--                         group_name = "AOB Nitrifiers") -> AOB -->
+<!-- ``` -->
+
+
+<!-- ##### normality test (Shapiro-Francia test) -->
+
+<!-- ```{r} -->
+<!-- normality_test(occurrence_table = AOB) -> AOB -->
+<!-- hist(AOB$reads) -->
+<!-- print("Quantile-Quantile plot") -->
+<!-- ggpubr::ggqqplot(AOB$reads, ylab = "Number of reads?") -->
+<!-- ``` -->
+
+
+<!-- ### nitrite oxidizing bacteria (NOB Nitrifiers) -->
+
+<!-- ```{r} -->
+<!-- select_ecological_group(ecological_group = NOB_Nitrifiers, -->
+<!--                         group_name = "NOB Nitrifiers") -> NOB -->
+<!-- ``` -->
+
+
+<!-- ##### normality test (Shapiro-Francia test) -->
+
+<!-- ```{r} -->
+<!-- normality_test(occurrence_table = NOB) -> NOB -->
+<!-- hist(NOB$reads) -->
+<!-- print("Quantile-Quantile plot") -->
+<!-- ggpubr::ggqqplot(NOB$reads, ylab = "Number of reads?") -->
+<!-- ``` -->
+
+
+<!-- ### locality effect -->
+
+<!-- #### functions -->
+
+<!-- ```{r} -->
+<!-- make_kruskal_test <- function(ecological_group, group_name) { -->
+<!--     kruskal.test(formula = reads ~ locality, -->
+<!--                  data = ecological_group, -->
+<!--                  na.action = na.omit) -> kruskal_results -->
+
+<!--     kruskal_results$p.value %>% -->
+<!--         round(digits = 4) %>% -->
+<!--         paste("Kruskal-Wallis rank sum test", -->
+<!--               "\nLocality P = ", ., sep = "") -> local_message -->
+
+<!--     tibble(ecological_group = ecological_group, -->
+<!--            message = local_message, -->
+<!--            group_name = group_name) -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- make_dunn_test <- function(ecological_group, group_name) { -->
+<!--     dunn.test::dunn.test(ecological_group$reads, -->
+<!--                          ecological_group$locality, -->
+<!--                          method = "bh") -> dunn_results -->
+
+<!--     tibble(comparisons = dunn_results$comparisons, -->
+<!--            p_adjusted = dunn_results$P.adjusted, -->
+<!--            group_name = group_name) -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- #### kruskall Wallis test (two groups) -->
+
+
+<!-- ```{r} -->
+<!-- bind_rows( -->
+<!--     make_kruskal_test(ecological_group = legume_nodulating, -->
+<!--                       group_name = "legume nodulating"), -->
+<!--     make_kruskal_test(ecological_group = actinorhizal_nodulating, -->
+<!--                       group_name = "actinorhizal_nodulating"), -->
+<!--     make_kruskal_test(ecological_group = AOB, -->
+<!--                       group_name = "AOB Nitrifiers"), -->
+<!--     make_kruskal_test(ecological_group = NOB, -->
+<!--                       group_name = "NOB Nitrifiers") -->
+<!-- ) %>% -->
+<!--     group_by(group_name, message) %>% -->
+<!--     summarize(ymax = 1.1 * max(ecological_group$reads)) %>% -->
+<!--     ungroup() %>% -->
+<!--     mutate(group_name = str_replace(group_name, "_", " ")) -> kruskal_tests -->
+<!-- ``` -->
+
+<!-- note that the tibble is simplified (only one p-value per ecological -->
+<!-- group), to facilitate the inclusion in facetted boxplots. -->
+
+
+<!-- #### Dunn test (multi groups) -->
+
+<!-- ```{r} -->
+<!-- bind_rows( -->
+<!--     make_dunn_test(ecological_group = legume_nodulating, -->
+<!--                    group_name = "legume nodulating"), -->
+<!--     make_dunn_test(ecological_group = actinorhizal_nodulating, -->
+<!--                    group_name = "actinorhizal_nodulating"), -->
+<!--     make_dunn_test(ecological_group = AOB, -->
+<!--                    group_name = "AOB Nitrifiers"), -->
+<!--     make_dunn_test(ecological_group = NOB, -->
+<!--                    group_name = "NOB Nitrifiers") -->
+<!-- ) -> dunn_tests -->
+<!-- ``` -->
+
+<!-- These test results are used by Hervé in the boxplots. -->
+
+
+<!-- #### boxplots -->
+
+<!-- ```{r} -->
+<!-- bind_rows( -->
+<!--     legume_nodulating, -->
+<!--     actinorhizal_nodulating, -->
+<!--     AOB, -->
+<!--     NOB -->
+<!-- ) -> occurrences -->
+<!-- ``` -->
+
+<!-- by default, localities are plotted in alphabetical order, we need to -->
+<!-- know which one is the first: -->
+
+<!-- ```{r} -->
+<!-- occurrences %>% -->
+<!--     distinct(locality) %>% -->
+<!--     arrange(locality) %>% -->
+<!--     head(n = 1) %>% -->
+<!--     pull() -> first_locality -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- occurrences %>% -->
+<!--     ggplot(aes(x = locality, y = reads, fill = locality)) + -->
+<!--     geom_boxplot(outlier.shape = NA) + -->
+<!--     scale_fill_manual(values = cbPalette, guide = "none") + -->
+<!--     geom_jitter(position = position_jitter(0.1), -->
+<!--                 alpha = 1/5, cex = 2.5) + -->
+<!--     geom_text(data = kruskal_tests, -->
+<!--               aes(x = first_locality, y = ymax, label = message), -->
+<!--               inherit.aes = FALSE, -->
+<!--               hjust = 0.1, vjust = 1) + -->
+<!--     facet_wrap(vars(group_name), scales = "free_y") + -->
+<!--     xlab("") + -->
+<!--     theme_bw(base_size = 16) -->
+<!-- ``` -->
+
+
+<!-- #### clean up -->
+
+<!-- ```{r} -->
+<!-- rm(full_occurrence_table, legume_nodulating, actinorhizal_nodulating, AOB, NOB, first_locality) -->
+<!-- ``` -->
+
+<!-- roadmap: -->
+
+<!-- - test git pull, -->
+<!-- - ask Hervé to review the Nitrogen section, -->
+<!-- - NA should be marked as unknown?, -->
+<!-- - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is -->
+<!--   only one genus with that function -->
+
+***
+
+```{r}
+sessionInfo()
+rm(list = ls())
+```
