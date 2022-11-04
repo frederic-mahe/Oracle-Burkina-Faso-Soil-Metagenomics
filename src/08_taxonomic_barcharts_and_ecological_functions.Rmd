@@ -38,7 +38,7 @@ seed <- 123
 ```
 
 ```{r}
-load_16S_taxonomic_occurrence_data <- function(filename){
+load_SSU_taxonomic_occurrence_data <- function(filename){
     here::here("data", "MetaB_t0", filename) %>%
         read_tsv(show_col_types = FALSE)
 }
@@ -80,7 +80,7 @@ lump_and_plot <- function(taxonomic_level) {
 ## load occurrence data
 
 ```{r}
-load_16S_taxonomic_occurrence_data(input) -> full_occurrence_table
+load_SSU_taxonomic_occurrence_data(input) -> full_occurrence_table
 ```
 
 
