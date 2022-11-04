@@ -491,6 +491,12 @@ sequencing_metadata %>%
     filter(run != "SAMA_12") %>%
     distinct(soil_code) %>%
     pull() -> resequenced_samples
+
+resequenced_samples
+
+##  [1] "BU-RT-10"  "BU-SER-10" "BU-SER-11" "BU-SER-12" "BU-SER-01" "BU-SER-03"
+##  [7] "BU-SER-04" "BU-SER-05" "BU-SER-06" "BU-SER-07" "BU-SER-08" "BU-SER-09"
+## [13] "BU-ST-13"  "BU-ST-01"  "BU-TS-07"  "BU-YL-09"
 ```
 
 
