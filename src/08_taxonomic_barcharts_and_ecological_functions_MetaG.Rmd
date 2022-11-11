@@ -192,258 +192,299 @@ Notes regarding family '67-14'. From [Foesel et al.,
 
 
 
-<!-- ## ecological functions involving nitrogen -->
+## ecological functions involving nitrogen
 
-<!-- Define each ecological group (genus level): -->
+Define each ecological group (genus level):
 
-<!-- ```{r} -->
-<!-- major_legume_nodulating_N_fixers <- c("Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium", -->
-<!--                                       "Mesorhizobium", "Sinorhizobium", "Ensifer", -->
-<!--                                       "Bradyrhizobium", "Microvirga") -->
-<!-- major_actinorhizal_nodulating_N_fixers <- c("Frankia") -->
-<!-- AOB_Nitrifiers <- c("Nitrosomonas", "Nitrosospira", "Nitrosococcus") -->
-<!-- NOB_Nitrifiers <- c("Nitrobacter", "Nitrospira", "Nitrococcus") -->
-<!-- ``` -->
-
-
-<!-- ### functions -->
-
-<!-- ```{r} -->
-<!-- select_ecological_group <- function(ecological_group, group_name) { -->
-<!--     full_occurrence_table %>% -->
-<!--         filter(genus %in% ecological_group) %>% -->
-<!--         count(soil_code, locality, wt = reads, name = "reads") %>% -->
-<!--         mutate(group_name = group_name) -->
-<!-- } -->
-<!-- ``` -->
-
-<!-- if Shapiro-Francia test as a p-value < 0.05, data needs to be transformed -->
-<!-- to reach normality. Transformation can be `sqrt()`, `sqrt(sqrt())`, -->
-<!-- `log1p()`, `log10()`, `asin(sqrt(x / 100))`. -->
-
-<!-- ```{r} -->
-<!-- normality_test <- function(occurrence_table) { -->
-<!--     set.seed(seed) -->
-<!--     shapiro.test(occurrence_table$reads) -> shapiro_results -->
-<!--     print(paste("Shapiro p-value:", shapiro_results$p.value)) -->
-
-<!--     if (shapiro_results$p.value < 0.05) { -->
-<!--         print("normality hypothesis is not supported, use a sqrt(x) transformation:") -->
-<!--         occurrence_table %>% -->
-<!--             mutate(reads = sqrt(reads)) -> occurrence_table -->
-<!--     } else { -->
-<!--         print("normality hypothesis cannot be rejected, no transformation needed.") -->
-<!--     } -->
-
-<!--     occurrence_table -->
-<!-- } -->
-<!-- ``` -->
+```{r}
+major_legume_nodulating_N_fixers <- c("Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium",
+                                      "Mesorhizobium", "Sinorhizobium", "Ensifer",
+                                      "Bradyrhizobium", "Microvirga")
+major_actinorhizal_nodulating_N_fixers <- c("Frankia")
+AOB_Nitrifiers <- c("Nitrosomonas", "Nitrosospira", "Nitrosococcus")
+NOB_Nitrifiers <- c("Nitrobacter", "Nitrospira", "Nitrococcus")
+```
 
 
-<!-- ### major legume nodulating N-fixers -->
+```{r}
+full_occurrence_table %>%
+        filter(genus %in% major_legume_nodulating_N_fixers) %>%
+        count(soil_code, locality, read_pass, wt = reads, name = "reads")
 
-<!-- see [Shamseldin et al. (2017)](https://doi.org/10.1007/s13199-016-0462-3): -->
-
-<!-- ```{r} -->
-<!-- select_ecological_group(ecological_group = major_legume_nodulating_N_fixers, -->
-<!--                         group_name = "legume nodulating") -> legume_nodulating -->
-<!-- ``` -->
+```
 
 
-<!-- ##### normality test (Shapiro-Francia test) -->
+### functions
 
-<!-- ```{r} -->
-<!-- normality_test(occurrence_table = legume_nodulating) -> legume_nodulating -->
-<!-- hist(legume_nodulating$reads) -->
-<!-- print("Quantile-Quantile plot") -->
-<!-- ggpubr::ggqqplot(legume_nodulating$reads, ylab = "Number of reads?") -->
-<!-- ``` -->
+```{r}
+select_ecological_group <- function(ecological_group, group_name) {
+    full_occurrence_table %>%
+        filter(genus %in% ecological_group) %>%
+        count(soil_code, locality, read_pass, wt = reads, name = "reads") %>%
+        mutate(group_name = group_name)
+}
+```
 
+if Shapiro-Francia test as a p-value < 0.05, data needs to be transformed
+to reach normality. Transformation can be `sqrt()`, `sqrt(sqrt())`,
+`log1p()`, `log10()`, `asin(sqrt(x / 100))`.
 
-<!-- ### major actinorhizal nodulating N-fixers -->
+```{r}
+normality_test <- function(occurrence_table) {
+    set.seed(seed)
 
-<!-- *Frankia* is the only known genus in Africa. -->
+    for (read_pass in read_passes) {
+        occurrence_table %>%
+            filter(read_pass == !!read_pass) %>%
+            pull(reads) %>%
+            shapiro.test(.) -> shapiro_results
 
-<!-- ```{r} -->
-<!-- select_ecological_group(ecological_group = major_actinorhizal_nodulating_N_fixers, -->
-<!--                         group_name = "actinorhizal nodulating") -> actinorhizal_nodulating -->
-<!-- ``` -->
+        print(paste("Shapiro p-value (", read_pass, "):", shapiro_results$p.value))
 
+        if (shapiro_results$p.value < 0.05) {
+            print("normality hypothesis is not supported, use a sqrt(x) transformation:")
+            occurrence_table %>%
+                mutate(reads = case_when(
+                           read_pass == !!read_pass ~ sqrt(reads),
+                           TRUE              ~ reads)) -> occurrence_table
+        } else {
+            print("normality hypothesis cannot be rejected, no transformation needed.")
+        }
+    }
 
-<!-- ##### normality test (Shapiro-Francia test) -->
-
-<!-- ```{r} -->
-<!-- normality_test(occurrence_table = actinorhizal_nodulating) -> actinorhizal_nodulating -->
-<!-- hist(actinorhizal_nodulating$reads) -->
-<!-- print("Quantile-Quantile plot") -->
-<!-- ggpubr::ggqqplot(actinorhizal_nodulating$reads, ylab = "Number of reads?") -->
-<!-- ``` -->
-
-
-<!-- ### ammonium oxidizing bacteria (AOB Nitrifiers) -->
-
-<!-- ```{r} -->
-<!-- select_ecological_group(ecological_group = AOB_Nitrifiers, -->
-<!--                         group_name = "AOB Nitrifiers") -> AOB -->
-<!-- ``` -->
-
-
-<!-- ##### normality test (Shapiro-Francia test) -->
-
-<!-- ```{r} -->
-<!-- normality_test(occurrence_table = AOB) -> AOB -->
-<!-- hist(AOB$reads) -->
-<!-- print("Quantile-Quantile plot") -->
-<!-- ggpubr::ggqqplot(AOB$reads, ylab = "Number of reads?") -->
-<!-- ``` -->
+    occurrence_table
+}
 
 
-<!-- ### nitrite oxidizing bacteria (NOB Nitrifiers) -->
+plot_histogram_and_qqplot <- function(occurrence_table) {
+    for (read_pass in read_passes) {
+        occurrence_table %>%
+            filter(read_pass == !!read_pass) %>%
+            pull(reads) -> reads_per_read_pass
 
-<!-- ```{r} -->
-<!-- select_ecological_group(ecological_group = NOB_Nitrifiers, -->
-<!--                         group_name = "NOB Nitrifiers") -> NOB -->
-<!-- ``` -->
+        print(paste0(read_pass, "'s histogram"))
+        reads_per_read_pass %>%
+            hist(., main = paste("Histogram of", read_pass))
 
-
-<!-- ##### normality test (Shapiro-Francia test) -->
-
-<!-- ```{r} -->
-<!-- normality_test(occurrence_table = NOB) -> NOB -->
-<!-- hist(NOB$reads) -->
-<!-- print("Quantile-Quantile plot") -->
-<!-- ggpubr::ggqqplot(NOB$reads, ylab = "Number of reads?") -->
-<!-- ``` -->
-
-
-<!-- ### locality effect -->
-
-<!-- #### functions -->
-
-<!-- ```{r} -->
-<!-- make_kruskal_test <- function(ecological_group, group_name) { -->
-<!--     kruskal.test(formula = reads ~ locality, -->
-<!--                  data = ecological_group, -->
-<!--                  na.action = na.omit) -> kruskal_results -->
-
-<!--     kruskal_results$p.value %>% -->
-<!--         round(digits = 4) %>% -->
-<!--         paste("Kruskal-Wallis rank sum test", -->
-<!--               "\nLocality P = ", ., sep = "") -> local_message -->
-
-<!--     tibble(ecological_group = ecological_group, -->
-<!--            message = local_message, -->
-<!--            group_name = group_name) -->
-<!-- } -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- make_dunn_test <- function(ecological_group, group_name) { -->
-<!--     dunn.test::dunn.test(ecological_group$reads, -->
-<!--                          ecological_group$locality, -->
-<!--                          method = "bh") -> dunn_results -->
-
-<!--     tibble(comparisons = dunn_results$comparisons, -->
-<!--            p_adjusted = dunn_results$P.adjusted, -->
-<!--            group_name = group_name) -->
-<!-- } -->
-<!-- ``` -->
-
-<!-- #### kruskall Wallis test (two groups) -->
+        print(paste0(read_pass, "'s quantile-quantile plot"))
+        reads_per_read_pass %>%
+            ggpubr::ggqqplot(.) %>%
+            print()
+    }
+}
+```
 
 
-<!-- ```{r} -->
-<!-- bind_rows( -->
-<!--     make_kruskal_test(ecological_group = legume_nodulating, -->
-<!--                       group_name = "legume nodulating"), -->
-<!--     make_kruskal_test(ecological_group = actinorhizal_nodulating, -->
-<!--                       group_name = "actinorhizal_nodulating"), -->
-<!--     make_kruskal_test(ecological_group = AOB, -->
-<!--                       group_name = "AOB Nitrifiers"), -->
-<!--     make_kruskal_test(ecological_group = NOB, -->
-<!--                       group_name = "NOB Nitrifiers") -->
-<!-- ) %>% -->
-<!--     group_by(group_name, message) %>% -->
-<!--     summarize(ymax = 1.1 * max(ecological_group$reads)) %>% -->
-<!--     ungroup() %>% -->
-<!--     mutate(group_name = str_replace(group_name, "_", " ")) -> kruskal_tests -->
-<!-- ``` -->
+### major legume nodulating N-fixers
 
-<!-- note that the tibble is simplified (only one p-value per ecological -->
-<!-- group), to facilitate the inclusion in facetted boxplots. -->
+see [Shamseldin et al. (2017)](https://doi.org/10.1007/s13199-016-0462-3):
+
+```{r}
+select_ecological_group(ecological_group = major_legume_nodulating_N_fixers,
+                        group_name = "legume nodulating") -> legume_nodulating
+```
 
 
-<!-- #### Dunn test (multi groups) -->
+##### normality test (Shapiro-Francia test)
 
-<!-- ```{r} -->
-<!-- bind_rows( -->
-<!--     make_dunn_test(ecological_group = legume_nodulating, -->
-<!--                    group_name = "legume nodulating"), -->
-<!--     make_dunn_test(ecological_group = actinorhizal_nodulating, -->
-<!--                    group_name = "actinorhizal_nodulating"), -->
-<!--     make_dunn_test(ecological_group = AOB, -->
-<!--                    group_name = "AOB Nitrifiers"), -->
-<!--     make_dunn_test(ecological_group = NOB, -->
-<!--                    group_name = "NOB Nitrifiers") -->
-<!-- ) -> dunn_tests -->
-<!-- ``` -->
-
-<!-- These test results are used by Hervé in the boxplots. -->
+```{r}
+normality_test(occurrence_table = legume_nodulating) -> legume_nodulating
+plot_histogram_and_qqplot(occurrence_table = legume_nodulating)
+```
 
 
-<!-- #### boxplots -->
+### major actinorhizal nodulating N-fixers
 
-<!-- ```{r} -->
-<!-- bind_rows( -->
-<!--     legume_nodulating, -->
-<!--     actinorhizal_nodulating, -->
-<!--     AOB, -->
-<!--     NOB -->
-<!-- ) -> occurrences -->
-<!-- ``` -->
+*Frankia* is the only known genus in Africa.
 
-<!-- by default, localities are plotted in alphabetical order, we need to -->
-<!-- know which one is the first: -->
+```{r}
+select_ecological_group(ecological_group = major_actinorhizal_nodulating_N_fixers,
+                        group_name = "actinorhizal nodulating") -> actinorhizal_nodulating
 
-<!-- ```{r} -->
-<!-- occurrences %>% -->
-<!--     distinct(locality) %>% -->
-<!--     arrange(locality) %>% -->
-<!--     head(n = 1) %>% -->
-<!--     pull() -> first_locality -->
-<!-- ``` -->
+actinorhizal_nodulating %>%
+    filter(reads > 0)
+```
+
+*Frankia* is present in only one sample.
 
 
-<!-- ```{r} -->
-<!-- occurrences %>% -->
-<!--     ggplot(aes(x = locality, y = reads, fill = locality)) + -->
-<!--     geom_boxplot(outlier.shape = NA) + -->
-<!--     scale_fill_manual(values = cbPalette, guide = "none") + -->
-<!--     geom_jitter(position = position_jitter(0.1), -->
-<!--                 alpha = 1/5, cex = 2.5) + -->
-<!--     geom_text(data = kruskal_tests, -->
-<!--               aes(x = first_locality, y = ymax, label = message), -->
-<!--               inherit.aes = FALSE, -->
-<!--               hjust = 0.1, vjust = 1) + -->
-<!--     facet_wrap(vars(group_name), scales = "free_y") + -->
-<!--     xlab("") + -->
-<!--     theme_bw(base_size = 16) -->
-<!-- ``` -->
+##### normality test (Shapiro-Francia test)
+
+```{r}
+## normality_test(occurrence_table = actinorhizal_nodulating) -> actinorhizal_nodulating
+## plot_histogram_and_qqplot(occurrence_table = actinorhizal_nodulating)
+```
 
 
-<!-- #### clean up -->
+### ammonium oxidizing bacteria (AOB Nitrifiers)
 
-<!-- ```{r} -->
-<!-- rm(full_occurrence_table, legume_nodulating, actinorhizal_nodulating, AOB, NOB, first_locality) -->
-<!-- ``` -->
+```{r}
+select_ecological_group(ecological_group = AOB_Nitrifiers,
+                        group_name = "AOB Nitrifiers") -> AOB
 
-<!-- roadmap: -->
+AOB %>%
+    filter(reads > 0)
+```
 
-<!-- - test git pull, -->
-<!-- - ask Hervé to review the Nitrogen section, -->
-<!-- - NA should be marked as unknown?, -->
-<!-- - add '(Frankia)' to the legend 'Actinorhizal N-Fixer', as there is -->
-<!--   only one genus with that function -->
+Ammonium oxidizing bacteria are not detected in our metagenomics samples.
+
+
+##### normality test (Shapiro-Francia test)
+
+```{r}
+## normality_test(occurrence_table = AOB) -> AOB
+## plot_histogram_and_qqplot(occurrence_table = AOB)
+```
+
+
+### nitrite oxidizing bacteria (NOB Nitrifiers)
+
+```{r}
+select_ecological_group(ecological_group = NOB_Nitrifiers,
+                        group_name = "NOB Nitrifiers") -> NOB
+```
+
+
+##### normality test (Shapiro-Francia test)
+
+```{r}
+normality_test(occurrence_table = NOB) -> NOB
+plot_histogram_and_qqplot(occurrence_table = NOB)
+```
+
+
+### locality effect
+
+#### functions
+
+```{r}
+make_kruskal_test <- function(ecological_group, group_name) {
+    local_tibble <- tibble()
+
+    for (read_pass in read_passes) {
+        ecological_group %>%
+            filter(read_pass == !!read_pass) %>%
+            kruskal.test(formula = reads ~ locality,
+                         data = .,
+                         na.action = na.omit) -> kruskal_results
+
+        kruskal_results$p.value %>%
+            round(digits = 4) %>%
+            paste("Kruskal-Wallis rank sum test (", read_pass, ")",
+                  "\nLocality P = ", ., sep = "") -> local_message
+
+        ecological_group %>%
+            filter(read_pass == !!read_pass) %>%
+            tibble(.,
+               message = local_message) %>%
+            bind_rows(local_tibble, .) -> local_tibble
+    }
+
+    local_tibble
+}
+```
+
+```{r}
+make_dunn_test <- function(ecological_group, group_name) {
+    local_tibble <- tibble()
+
+    for (read_pass in read_passes) {
+        ecological_group %>%
+            filter(read_pass == !!read_pass) -> per_read_pass_data
+
+        dunn.test::dunn.test(per_read_pass_data$reads,
+                             per_read_pass_data$locality,
+                             method = "bh") -> dunn_results
+
+    tibble(comparisons = dunn_results$comparisons,
+           p_adjusted = dunn_results$P.adjusted,
+           group_name = group_name,
+           read_pass = read_pass) %>%
+            bind_rows(local_tibble, .) -> local_tibble
+    }
+
+    local_tibble
+}
+```
+
+#### kruskall Wallis test (two groups)
+
+
+```{r}
+bind_rows(
+    make_kruskal_test(ecological_group = legume_nodulating,
+                      group_name = "legume nodulating"),
+    make_kruskal_test(ecological_group = NOB,
+                      group_name = "NOB Nitrifiers")
+) %>%
+    group_by(group_name, read_pass, message) %>%
+    summarize(ymax = 1.1 * max(reads)) %>%
+    ungroup() %>%
+    mutate(group_name = str_replace(group_name, "_", " ")) -> kruskal_tests
+```
+
+note that the tibble is simplified (only one p-value per ecological
+group), to facilitate the inclusion in facetted boxplots.
+
+
+#### Dunn test (multi groups)
+
+```{r}
+bind_rows(
+    make_dunn_test(ecological_group = legume_nodulating,
+                   group_name = "legume nodulating"),
+    make_dunn_test(ecological_group = NOB,
+                   group_name = "NOB Nitrifiers")
+) -> dunn_tests
+```
+
+These test results are used by Hervé in the boxplots.
+
+
+#### boxplots
+
+```{r}
+bind_rows(
+    legume_nodulating,
+    NOB
+) -> occurrences
+```
+
+by default, localities are plotted in alphabetical order, we need to
+know which one is the first:
+
+```{r}
+occurrences %>%
+    distinct(locality) %>%
+    arrange(locality) %>%
+    head(n = 1) %>%
+    pull() -> first_locality
+```
+
+
+```{r}
+occurrences %>%
+    ggplot(aes(x = locality, y = reads, fill = locality)) +
+    geom_boxplot(outlier.shape = NA) +
+    scale_fill_manual(values = cbPalette, guide = "none") +
+    geom_jitter(position = position_jitter(0.1),
+                alpha = 1/5, cex = 2.5) +
+    geom_text(data = kruskal_tests,
+              aes(x = first_locality, y = ymax, label = message),
+              inherit.aes = FALSE,
+              hjust = 0.1, vjust = 1) +
+    facet_wrap(facet = vars(group_name, read_pass), nrow = 2, ncol = 2, scales = "free") +
+    xlab("") +
+    theme_bw(base_size = 16)
+```
+
+
+#### clean up
+
+```{r}
+rm(full_occurrence_table, legume_nodulating, actinorhizal_nodulating, AOB, NOB, first_locality)
+```
+
 
 ***
 
