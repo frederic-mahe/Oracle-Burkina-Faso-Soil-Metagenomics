@@ -172,7 +172,7 @@ load_references2taxonomy_data <- function() {
 }
 
 if (file.exists(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))) {
-    load_references2taxonomy_data -> references2taxonomic_paths
+    load_references2taxonomy_data() -> references2taxonomic_paths
 } else {
     ## a bit slow, see README.md for a shell alternative if need be
     here::here("data", "Silva", silva_SSURef_NR99) %>%
@@ -187,7 +187,7 @@ if (file.exists(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))) {
                  sep = "@") %>%
         write_tsv(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))
 
-    load_references2taxonomy_data -> references2taxonomic_paths
+    load_references2taxonomy_data() -> references2taxonomic_paths
 }
 
 rm(silva_SSURef_NR99, preprocessed_silva_SSURef_NR99)
