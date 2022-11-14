@@ -166,21 +166,28 @@ the first space with '@', and then use '@' as a field separator.
 silva_SSURef_NR99 <- "SILVA_138.1_SSURef_NR99_tax_silva.fasta.gz"
 preprocessed_silva_SSURef_NR99 <- "SILVA_138.1_SSURef_NR99_tax_silva.txt.gz"
 
-if (file.exists(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))) {
+load_references2taxonomy_data <- function() {
     here::here("data", "Silva", preprocessed_silva_SSURef_NR99) %>%
-        read_tsv(col_names = c("references", "taxonomic_paths"),
-                 show_col_types = FALSE) -> references2taxonomic_paths
+        read_tsv(show_col_types = FALSE)
+}
+
+if (file.exists(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))) {
+    load_references2taxonomy_data -> references2taxonomic_paths
 } else {
-    ## very slow and potentially broken, prefer shell code (see README.md)
+    ## a bit slow, see README.md for a shell alternative if need be
     here::here("data", "Silva", silva_SSURef_NR99) %>%
-        read_delim(delim = ">",
-                   col_names = c("sequence", "header"),
-                   col_select = c(header), show_col_types = FALSE) %>%
-        drop_na() %>%
-        mutate(header = str_replace(header, " ", "@")) %>%
+        read_delim(delim = "\t",
+                   col_names = c("header"),
+                   show_col_types = FALSE) %>%
+        filter(str_starts(header, ">")) %>%
+        mutate(header = str_remove(header, ">"),
+               header = str_replace(header, " ", "@")) %>%
         separate(col = header,
                  into = c("references", "taxonomic_paths"),
-                 sep = "@") -> references2taxonomic_paths
+                 sep = "@") %>%
+        write_tsv(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))
+
+    load_references2taxonomy_data -> references2taxonomic_paths
 }
 
 rm(silva_SSURef_NR99, preprocessed_silva_SSURef_NR99)
