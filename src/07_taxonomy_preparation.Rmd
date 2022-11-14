@@ -157,24 +157,22 @@ rm(find_duplicated_ranks, d, ban_some_taxa_and_ranks,
 
 ### Silva SSU NR99 references
 
-parse reference fasta sequences, keep only headers. Note that the
-accession number and taxonomic paths are separated by a space, but
-additional spaces can appear in taxonomic paths. That's why I replace
-the first space with '@', and then use '@' as a field separator.
+#### variables and functions
 
-```{r, warning = FALSE}
+```{r}
 silva_SSURef_NR99 <- "SILVA_138.1_SSURef_NR99_tax_silva.fasta.gz"
 preprocessed_silva_SSURef_NR99 <- "SILVA_138.1_SSURef_NR99_tax_silva.txt.gz"
+references2taxonomy_file <- here::here("data", "Silva", preprocessed_silva_SSURef_NR99)
 
-load_references2taxonomy_data <- function() {
-    here::here("data", "Silva", preprocessed_silva_SSURef_NR99) %>%
-        read_tsv(show_col_types = FALSE)
+
+references2taxonomy_file_is_missing <- function() {
+    references2taxonomy_file %>%
+        file.exists() %>%
+        isFALSE()
 }
 
-if (file.exists(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))) {
-    load_references2taxonomy_data() -> references2taxonomic_paths
-} else {
-    ## a bit slow, see README.md for a shell alternative if need be
+
+create_references2taxonomy_file <- function() {
     here::here("data", "Silva", silva_SSURef_NR99) %>%
         read_delim(delim = "\t",
                    col_names = c("header"),
@@ -185,10 +183,28 @@ if (file.exists(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))) {
         separate(col = header,
                  into = c("references", "taxonomic_paths"),
                  sep = "@") %>%
-        write_tsv(here::here("data", "Silva", preprocessed_silva_SSURef_NR99))
-
-    load_references2taxonomy_data() -> references2taxonomic_paths
+        write_tsv(references2taxonomy_file)
 }
+
+
+load_references2taxonomy_data <- function() {
+    references2taxonomy_file %>%
+        read_tsv(show_col_types = FALSE)
+}
+```
+
+
+parse reference fasta sequences, keep only headers. Note that the
+accession number and taxonomic paths are separated by a space, but
+additional spaces can appear in taxonomic paths. That's why I replace
+the first space with '@', and then use '@' as a field separator.
+
+```{r, warning = TRUE}
+if (references2taxonomy_file_is_missing()) {
+    create_references2taxonomy_file()
+}
+
+load_references2taxonomy_data() -> references2taxonomic_paths
 
 rm(silva_SSURef_NR99, preprocessed_silva_SSURef_NR99)
 ```
