@@ -31,6 +31,27 @@ library(tidyverse)
 
 ## preamble
 
+### generic functions
+
+```{r}
+file_is_missing <- function(path_to_file) {
+    path_to_file %>%
+        file.exists() %>%
+        isFALSE()
+}
+
+
+download_if_missing <- function(file_name, url) {
+    local_file <- here::here("data", "Silva", file_name)
+    if (file_is_missing(local_file)) {
+        download.file(url = paste0(url, file_name),
+                      destfile = local_file,
+                      method = "auto")
+    }
+}
+```
+
+
 ### download Silva files
 
 create folders if need be:
@@ -44,15 +65,6 @@ dir.create(here::here("data", "Silva"),
 if the Silva files are not already present, download them:
 
 ```{r}
-download_if_missing <- function(file_name, url) {
-    local_file <- here::here("data", "Silva", file_name)
-    if (! file.exists(local_file)) {
-        download.file(url = paste0(url, file_name),
-                      destfile = local_file,
-                      method = "auto")
-    }
-}
-
 URL <- "https://www.arb-silva.de/fileadmin/silva_databases/release_138.1/Exports/"
 
 download_if_missing(file_name = "SILVA_138.1_SSURef_NR99_tax_silva.fasta.gz",
@@ -165,13 +177,6 @@ preprocessed_silva_SSURef_NR99 <- "SILVA_138.1_SSURef_NR99_tax_silva.txt.gz"
 references2taxonomy_file <- here::here("data", "Silva", preprocessed_silva_SSURef_NR99)
 
 
-references2taxonomy_file_is_missing <- function() {
-    references2taxonomy_file %>%
-        file.exists() %>%
-        isFALSE()
-}
-
-
 create_references2taxonomy_file <- function() {
     here::here("data", "Silva", silva_SSURef_NR99) %>%
         read_delim(delim = "\t",
@@ -200,7 +205,7 @@ additional spaces can appear in taxonomic paths. That's why I replace
 the first space with '@', and then use '@' as a field separator.
 
 ```{r, warning = TRUE}
-if (references2taxonomy_file_is_missing()) {
+if (file_is_missing(references2taxonomy_file)) {
     create_references2taxonomy_file()
 }
 
