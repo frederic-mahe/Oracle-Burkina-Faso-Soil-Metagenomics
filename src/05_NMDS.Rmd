@@ -168,11 +168,11 @@ useful_metadata <- c("taxonomy")
 nmds_plot_file  <- "MetaG_NMDS_R1_vs_R2_SAMA_12_only.pdf"
 ```
 
-create the results subfolder if need be:
+create the `results` folder and subfolders if need be:
 
 ```{r}
 here::here("results", data_folder) %>%
-    dir.create(., showWarnings = FALSE)
+    dir.create(., recursive = TRUE, showWarnings = FALSE)
 ```
 
 
